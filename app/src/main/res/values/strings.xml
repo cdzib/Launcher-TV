@@ -234,4 +234,23 @@
     <string name="editor_increase">Aumentar %1$s</string>
     <string name="editor_previous">Opción anterior de %1$s</string>
     <string name="editor_next">Opción siguiente de %1$s</string>
+    <string name="search_base_subtitle">Escribe o usa la voz para encontrar tu app.</string>
+    <string name="search_focus_hint">Busca una app…</string>
+    <string name="search_voice">Buscar por voz</string>
+    <string name="search_voice_unavailable">La búsqueda por voz no está disponible en este dispositivo.</string>
+    <string name="search_keyboard_show">Mostrar teclado en pantalla</string>
+    <string name="search_keyboard_hide">Ocultar teclado en pantalla</string>
+    <string name="search_count_of_total">%1$d de %2$d apps</string>
+    <string name="search_mode_voice">Escribe con el control o usa voz</string>
+    <string name="search_mode_keyboard">Teclado en pantalla activo</string>
+    <string name="search_focus_footer_note">El buscador conserva el tema activo</string>
+    <string name="search_nav_settings">Ajustes</string>
+    <string name="search_hint_move">Mover</string>
+    <string name="search_hint_select">Seleccionar</string>
+    <string name="search_hint_open">Abrir</string>
+    <string name="search_hint_back">Atrás Volver</string>
+    <string name="search_hint_back_short">Volver</string>
+    <string name="search_empty_results">No se encontraron aplicaciones.\nPrueba con otro nombre o borra la búsqueda.</string>
+    <string name="search_empty_query">No encontramos apps con ese nombre.\nPrueba con otro término o usa la voz.</string>
+    <string name="search_empty_apps">No hay apps instaladas para buscar.</string>
 </resources>

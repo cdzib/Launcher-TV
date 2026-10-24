@@ -1,10 +1,14 @@
 package com.tv.launcher.custom
 
+import com.tv.launcher.custom.core.theme.LayoutKind
 import com.tv.launcher.custom.feature.apps.domain.model.AppEntry
 import com.tv.launcher.custom.feature.home.presentation.components.filterSearchApps
 import com.tv.launcher.custom.feature.home.presentation.components.resolveSelectedSearchApp
+import com.tv.launcher.custom.feature.home.presentation.components.shouldUseFocusSearchLayout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppSearchTest {
@@ -35,5 +39,16 @@ class AppSearchTest {
         val duplicate = apps[0].copy(label = "New label")
         assertEquals(renamed, resolveSelectedSearchApp(listOf(duplicate, renamed), "music"))
         assertEquals(duplicate, resolveSelectedSearchApp(listOf(duplicate, renamed), null))
+    }
+
+    @Test
+    fun `focus search layout is reserved for roku and apple profiles`() {
+        assertTrue(shouldUseFocusSearchLayout(LayoutKind.SIDE_GRID))
+        assertTrue(shouldUseFocusSearchLayout(LayoutKind.APPLE_HOME))
+        LayoutKind.values()
+            .filterNot { it == LayoutKind.SIDE_GRID || it == LayoutKind.APPLE_HOME }
+            .forEach { layout ->
+                assertFalse(layout.name, shouldUseFocusSearchLayout(layout))
+            }
     }
 }
