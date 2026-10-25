@@ -14,7 +14,7 @@ import androidx.tv.material3.darkColorScheme
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.model.theme.*
 
-enum class LayoutKind { BOTTOM_FLOATING, BOTTOM_EXPANDING, TOP_NAV, SIDE_GRID, ANDROID_GRID, GOOGLE_HOME, APPLE_HOME, TIZEN_HOME }
+enum class LayoutKind { BOTTOM_FLOATING, BOTTOM_EXPANDING, TOP_NAV, SIDE_GRID, ANDROID_GRID, GOOGLE_HOME, APPLE_HOME, TIZEN_HOME, FREE_MY_TV }
 
 @Immutable
 data class LauncherPalette(
@@ -65,6 +65,10 @@ fun ThemeId.toStyle(): LauncherStyle = when (this) {
     ThemeId.APPLE_TV -> LauncherStyle(
         LauncherPalette(Color(0xFF090807), Color(0xFF30231B), Color(0xFFFFC078), Light, Color(0xFFB8ACA2)),
         16.dp, 1.08f, LayoutKind.APPLE_HOME, R.string.theme_apple_tv
+    )
+    ThemeId.FREE_MY_TV -> LauncherStyle(
+        LauncherPalette(Color(0xFF090D19), Color(0xFF20232D), Color(0xFF168CFF), Light, Muted),
+        20.dp, 1.05f, LayoutKind.FREE_MY_TV, R.string.theme_free_my_tv
     )
 }
 

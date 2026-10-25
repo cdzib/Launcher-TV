@@ -6,5 +6,6 @@ data class InstalledTheme(
     val layout: ThemeId,
     val appearance: LauncherAppearance,
     val version: String? = null,
-    val composition: ThemeComposition? = null
+    val composition: ThemeComposition? = null,
+    val assetUris: Map<String, String> = emptyMap()
 )

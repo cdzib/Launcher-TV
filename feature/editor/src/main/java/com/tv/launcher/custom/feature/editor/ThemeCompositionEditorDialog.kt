@@ -69,6 +69,7 @@ import com.tv.launcher.custom.core.theme.PlaceholderCanvasData
 
 private const val MAX_BLOCKS = 12
 private const val MAX_PER_TYPE = 3
+private const val MAX_MEDIA_CONTENT_ITEMS = 20
 
 internal fun canAddThemeBlock(composition: ThemeComposition, type: ThemeBlockType): Boolean =
     composition.blocks.size < MAX_BLOCKS && composition.blocks.count { it.type == type } < MAX_PER_TYPE
@@ -86,6 +87,7 @@ private val FOCUSES = listOf("Zoom" to FocusStyle.SCALE, "Borde" to FocusStyle.B
 private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL)
 private val TOP_STYLES = listOf("Pestañas píldora" to TopBarStyle.TABS_PILL, "Pestañas texto" to TopBarStyle.TABS_TEXT, "Íconos" to TopBarStyle.ICONS, "Mínima" to TopBarStyle.MINIMAL)
 private val RAIL_STYLES = listOf("Lista" to RailStyle.LIST, "Íconos" to RailStyle.ICONS, "Íconos + texto" to RailStyle.ICONS_LABELS)
+private val PLACEMENTS = listOf("Contenido" to BlockPlacement.CONTENT, "Anclado abajo" to BlockPlacement.BOTTOM)
 private val YESNO = listOf("No" to false, "Sí" to true)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
@@ -96,6 +98,8 @@ fun ThemeCompositionEditorDialog(
     composition: ThemeComposition,
     onCompositionChange: (ThemeComposition) -> Unit,
     previewData: CanvasData = PlaceholderCanvasData,
+    availableAssetPaths: List<String> = emptyList(),
+    onImportAssets: () -> Unit = {},
     isEditing: Boolean = false,
     isSaving: Boolean = false,
     onSave: () -> Unit,
@@ -113,6 +117,7 @@ fun ThemeCompositionEditorDialog(
     Dialog(onDismissRequest = requestClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
         CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides SettingsColors.text) {
             ThemeEditorContent(name, onNameChange, composition, onCompositionChange, previewData,
+                availableAssetPaths, onImportAssets,
                 isEditing, isSaving, hasChanges, initialName, initialComposition, onSave, requestClose)
             if (showDiscard) ThemeEditorConfirmation(
                 title = stringResource(R.string.editor_discard_title),
@@ -189,6 +194,7 @@ internal fun BlockInspector(
     block: ThemeBlock,
     index: Int,
     composition: ThemeComposition,
+    availableAssetPaths: List<String>,
     canDuplicate: Boolean,
     onChange: (ThemeComposition) -> Unit,
     onSelect: (Int) -> Unit
@@ -215,6 +221,7 @@ internal fun BlockInspector(
         }
     }
     SettingsButton(stringResource(R.string.editor_reset_section), icon = Icons.Default.RestartAlt, onClick = { update { type.defaultBlock() } })
+    Picker("Ubicación del bloque", PLACEMENTS, block.placement) { v -> update { it.copy(placement = v) } }
 
     when (type) {
         ThemeBlockType.TITLE -> {
@@ -232,6 +239,9 @@ internal fun BlockInspector(
             Stepper("Alto del banner", block.rItemH(), 80, 400, 10, "dp") { v -> update { it.copy(itemHeight = v) } }
             Stepper("Tamaño del título", block.rTextSize(), 16, 72, 2, "sp") { v -> update { it.copy(textSize = v) } }
             Stepper("Esquinas", block.rCorner(), 0, 40, 2, "dp") { v -> update { it.copy(cornerRadius = v) } }
+            Picker(stringResource(R.string.custom_layout_hero_image), assetOptions(availableAssetPaths, block.imageAsset), block.imageAsset.orEmpty()) {
+                v -> update { it.copy(imageAsset = v.ifBlank { null }) }
+            }
         }
         ThemeBlockType.CHIPS_ROW -> {
             Field("Etiquetas (separadas por coma)", block.text.orEmpty(), "Juegos,Música", 100) { v -> update { it.copy(text = v.ifBlank { null }) } }
@@ -242,6 +252,53 @@ internal fun BlockInspector(
             Stepper("Esquinas", block.rCorner(), 0, 40, 2, "dp") { v -> update { it.copy(cornerRadius = v) } }
             Picker("Efecto de foco", FOCUSES, block.rFocusStyle()) { v -> update { it.copy(focusStyle = v) } }
             Stepper("Zoom al enfocar", block.focusScale ?: 112, 100, 150, 2, "%") { v -> update { it.copy(focusScale = v) } }
+        }
+        ThemeBlockType.MEDIA_ROW -> {
+            Field("Título de sección (opcional)", block.text.orEmpty(), "Ej. Nuevos canales", 60) {
+                value -> update { it.copy(text = value.ifBlank { null }) }
+            }
+            Stepper("Cantidad visible", block.maxItems ?: 8, 1, MAX_MEDIA_CONTENT_ITEMS) {
+                value -> update { it.copy(maxItems = value) }
+            }
+            Picker(stringResource(R.string.custom_layout_media_item_image), assetOptions(availableAssetPaths), block.imageAsset.orEmpty()) {
+                value -> update { it.copy(imageAsset = value.ifBlank { null }) }
+            }
+            block.contentItems.forEachIndexed { itemIndex, contentItem ->
+                Text(stringResource(R.string.custom_layout_media_item, itemIndex + 1), color = SettingsColors.text, fontSize = 16.sp)
+                Field(stringResource(R.string.custom_layout_media_item_title), contentItem.label, "Título", 60) { value ->
+                    update { current -> current.copy(contentItems = current.contentItems.mapIndexed { index, item ->
+                        if (index == itemIndex) item.copy(label = value) else item
+                    }) }
+                }
+                Picker(
+                    stringResource(R.string.custom_layout_media_item_image),
+                    assetOptions(availableAssetPaths, contentItem.imageAsset),
+                    contentItem.imageAsset
+                ) { value ->
+                    update { current -> current.copy(contentItems = current.contentItems.mapIndexed { index, item ->
+                        if (index == itemIndex) item.copy(imageAsset = value) else item
+                    }) }
+                }
+                Field(stringResource(R.string.custom_layout_media_item_package), contentItem.launchPackage.orEmpty(), "com.example.app", 200) { value ->
+                    update { current -> current.copy(contentItems = current.contentItems.mapIndexed { index, item ->
+                        if (index == itemIndex) item.copy(launchPackage = value.ifBlank { null }) else item
+                    }) }
+                }
+                SettingsButton(stringResource(R.string.custom_layout_remove_media_item), icon = Icons.Default.DeleteOutline) {
+                    update { current -> current.copy(contentItems = current.contentItems.filterIndexed { index, _ -> index != itemIndex }) }
+                }
+            }
+            SettingsButton(
+                stringResource(R.string.custom_layout_add_media_item),
+                icon = Icons.Default.Add,
+                enabled = block.contentItems.size < MAX_MEDIA_CONTENT_ITEMS && availableAssetPaths.isNotEmpty()
+            ) {
+                val initialAsset = availableAssetPaths.first()
+                update { current -> current.copy(contentItems = current.contentItems + ThemeContentItem("Nuevo elemento", initialAsset)) }
+            }
+            if (availableAssetPaths.isEmpty()) {
+                Text(stringResource(R.string.custom_layout_add_theme_images), color = SettingsColors.muted, fontSize = 13.sp)
+            }
         }
         else -> if (isCards) {
             Field("Título de sección (opcional)", block.text.orEmpty(), "Ej. Apps favoritas", 40) { v -> update { it.copy(text = v.ifBlank { null }) } }
@@ -270,6 +327,11 @@ internal fun BlockInspector(
         ColorRow("Fondo de la sección", block.bgColor) { v -> update { it.copy(bgColor = v) } }
     if (block.bgColor != null) Stepper("Opacidad del fondo", block.bgAlpha ?: 100, 0, 100, 10, "%") { v -> update { it.copy(bgAlpha = v) } }
     }
+}
+
+private fun assetOptions(paths: List<String>, selectedPath: String? = null): List<Pair<String, String>> {
+    val availablePaths = (paths + listOfNotNull(selectedPath)).distinct()
+    return listOf("Sin imagen" to "") + availablePaths.map { path -> path.substringAfterLast('/') to path }
 }
 
 // ───────────── Controles reutilizables ─────────────
@@ -409,6 +471,7 @@ internal fun ThemeBlockType.defaultBlock(): ThemeBlock = when (this) {
     ThemeBlockType.HERO -> ThemeBlock(this, text = "Destacado", subtitle = "Descripción breve")
     ThemeBlockType.CHIPS_ROW -> ThemeBlock(this, text = "Juegos,Música,Deportes,Hogar", multicolor = true)
     ThemeBlockType.RECENTS_ROW -> ThemeBlock(this, text = "Recientes", maxItems = 5)
+    ThemeBlockType.MEDIA_ROW -> ThemeBlock(this, text = "Contenido", maxItems = 8)
 }
 
 @Composable
@@ -421,4 +484,5 @@ internal fun ThemeBlockType.label(): String = when (this) {
     ThemeBlockType.HERO -> "Banner"
     ThemeBlockType.CHIPS_ROW -> "Categorías"
     ThemeBlockType.RECENTS_ROW -> "Recientes"
+    ThemeBlockType.MEDIA_ROW -> stringResource(R.string.custom_layout_media_row)
 }

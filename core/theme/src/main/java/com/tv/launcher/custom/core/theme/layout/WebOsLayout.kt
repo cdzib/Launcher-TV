@@ -47,9 +47,11 @@ fun WebOsLayout(
     firstItemFocus: FocusRequester,
     onLaunch: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenPersonalization: () -> Unit = onOpenSettings
 ) {
     val onOpenApps = LocalOpenApps.current
+    val onOpenSearch = LocalOpenSearch.current
     val shortcuts = LocalShortcutPackages.current
     val setShortcut = LocalSetShortcut.current
     var editingSlot by remember { mutableStateOf<Int?>(null) }
@@ -67,7 +69,8 @@ fun WebOsLayout(
                 Column(Modifier.width(56.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     WebOsAction("", stringResource(R.string.launcher_settings), onOpenSettings, Modifier.size(44.dp), palette.accent, true, icon = Icons.Outlined.AccountCircle)
                     WebOsAction("", stringResource(R.string.launcher_settings), onOpenSettings, Modifier.size(44.dp), icon = Icons.Outlined.Settings)
-                    WebOsAction("", stringResource(R.string.search_apps), onOpenApps, Modifier.size(44.dp), icon = Icons.Outlined.Search)
+                    LauncherPersonalizationButton(onOpenPersonalization)
+                    WebOsAction("", stringResource(R.string.search_apps), onOpenSearch, Modifier.size(44.dp), icon = Icons.Outlined.Search)
                 }
                 InstalledAppHero(resolveShortcut(apps, shortcuts, 0) ?: apps.firstOrNull(), onLaunch, Modifier.weight(1f).height(bannerHeight).padding(end = 20.dp))
             }

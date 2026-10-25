@@ -10,6 +10,10 @@ interface CanvasData {
     fun label(block: ThemeBlock, index: Int): String
     @Composable fun Icon(block: ThemeBlock, index: Int, modifier: Modifier)
     @Composable fun HeroBackground(block: ThemeBlock, modifier: Modifier) {}
+    fun isItemClickable(block: ThemeBlock, index: Int): Boolean = true
     fun onItemClick(block: ThemeBlock, index: Int) {}
     fun onNavClick(label: String) {}
+    fun onSystemSettingsClick() {}
+    fun onPersonalizationClick() {}
+    fun withThemeAssets(assetUris: Map<String, String>): CanvasData = this
 }

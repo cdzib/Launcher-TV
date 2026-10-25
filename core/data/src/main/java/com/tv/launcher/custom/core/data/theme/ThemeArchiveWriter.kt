@@ -15,10 +15,19 @@ object ThemeArchiveWriter {
         backgroundAsset: ByteArray?,
         composition: ThemeComposition? = null,
         name: String? = null,
-        id: String = UUID.randomUUID().toString()
+        id: String = UUID.randomUUID().toString(),
+        additionalAssets: Map<String, ByteArray> = emptyMap()
     ): ByteArray {
         if (backgroundAsset != null && backgroundAsset.size > 5 * 1024 * 1024) {
             throw ThemeArchiveException("Theme image exceeds the 5 MiB limit")
+        }
+        val allAssets = additionalAssets.toMutableMap()
+        if (backgroundAsset != null) allAssets["assets/background.png"] = backgroundAsset
+        if (allAssets.size > 10 || allAssets.values.any { it.size > 5 * 1024 * 1024 }) {
+            throw ThemeArchiveException("Theme asset limits exceeded")
+        }
+        if (allAssets.keys.any { !it.matches(Regex("assets/[A-Za-z0-9_-]+\\.(png|jpg|jpeg|webp)")) }) {
+            throw ThemeArchiveException("Invalid theme asset path")
         }
         val background = if (backgroundAsset == null) {
             buildJsonObject {
@@ -47,15 +56,17 @@ object ThemeArchiveWriter {
                 zip.putNextEntry(ZipEntry("manifest.json"))
                 zip.write(Json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), manifest).toByteArray(Charsets.UTF_8))
                 zip.closeEntry()
-                if (backgroundAsset != null) {
-                    zip.putNextEntry(ZipEntry("assets/background.png"))
-                    zip.write(backgroundAsset)
+                allAssets.forEach { (path, bytes) ->
+                    zip.putNextEntry(ZipEntry(path))
+                    zip.write(bytes)
                     zip.closeEntry()
                 }
             }
             output.toByteArray()
         }
         if (archiveBytes.size > 20 * 1024 * 1024) throw ThemeArchiveException("Theme package exceeds the 20 MiB limit")
+        val archive = ThemeArchiveReader.read(archiveBytes)
+        ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
         return archiveBytes
     }
 }

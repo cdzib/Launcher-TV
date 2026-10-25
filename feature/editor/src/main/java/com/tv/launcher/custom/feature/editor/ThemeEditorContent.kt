@@ -56,6 +56,8 @@ internal fun ThemeEditorContent(
     composition: ThemeComposition,
     onCompositionChange: (ThemeComposition) -> Unit,
     previewData: CanvasData,
+    availableAssetPaths: List<String>,
+    onImportAssets: () -> Unit,
     isEditing: Boolean,
     isSaving: Boolean,
     hasChanges: Boolean,
@@ -167,6 +169,19 @@ internal fun ThemeEditorContent(
                                     Text(stringResource(R.string.editor_composition), color = SettingsColors.text, fontSize = 20.sp)
                                     Field(stringResource(R.string.editor_theme_name), name, stringResource(R.string.custom_layout_name_hint), 40, onNameChange)
                                     Text(stringResource(R.string.editor_name_hint), color = SettingsColors.muted, fontSize = 12.sp)
+                                    SettingsButton(
+                                        stringResource(R.string.custom_layout_add_theme_images),
+                                        icon = Icons.Default.AddPhotoAlternate,
+                                        enabled = !isSaving,
+                                        onClick = onImportAssets
+                                    )
+                                    if (availableAssetPaths.isNotEmpty()) {
+                                        Text(
+                                            stringResource(R.string.custom_layout_theme_images) + ": " + availableAssetPaths.joinToString { it.substringAfterLast('/') },
+                                            color = SettingsColors.muted,
+                                            fontSize = 12.sp
+                                        )
+                                    }
                                     EditorDivider()
                                     Text(stringResource(R.string.editor_choose_template), color = SettingsColors.muted, fontSize = 14.sp)
                                     ThemePresets.all.forEachIndexed { index, preset ->
@@ -185,7 +200,8 @@ internal fun ThemeEditorContent(
                                             -3 -> RailInspector(composition, onCompositionChange)
                                             else -> composition.blocks.getOrNull(target ?: -1)?.let { block ->
                                                 Text(block.type.label(), color = SettingsColors.text, fontSize = 20.sp)
-                                                BlockInspector(block, target!!, composition, canAddThemeBlock(composition, block.type), onCompositionChange) {
+                                                BlockInspector(block, target!!, composition, availableAssetPaths,
+                                                    canAddThemeBlock(composition, block.type), onCompositionChange) {
                                                     selected = it; inspectorTarget = it
                                                 }
                                             }
@@ -309,6 +325,7 @@ private fun ThemeBlockType.editorIcon(): ImageVector = when (this) {
     ThemeBlockType.RECENTS_ROW -> Icons.Default.History
     ThemeBlockType.CHIPS_ROW -> Icons.Default.Category
     ThemeBlockType.APPS_ROW -> Icons.Default.ViewCarousel
+    ThemeBlockType.MEDIA_ROW -> Icons.Default.VideoLibrary
 }
 
 @Composable
@@ -368,5 +385,8 @@ private fun ThemeEditorSavingPreview() = ThemeEditorPreviewContent(ThemeEditorCa
 @Composable
 private fun ThemeEditorPreviewContent(category: ThemeEditorCategory, saving: Boolean = false) = LauncherTheme(ThemeId.WEBOS) {
     val composition = ThemePresets.all.first().composition
-    ThemeEditorContent("Mi tema", {}, composition, {}, PlaceholderCanvasData, false, saving, true, "Mi tema", composition, {}, {}, category)
+    ThemeEditorContent(
+        "Mi tema", {}, composition, {}, PlaceholderCanvasData, emptyList(), {},
+        false, saving, true, "Mi tema", composition, {}, {}, category
+    )
 }

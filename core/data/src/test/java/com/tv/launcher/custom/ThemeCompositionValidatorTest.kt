@@ -49,4 +49,38 @@ class ThemeCompositionValidatorTest {
             ThemeCompositionValidator.parse(ThemeCompositionValidator.encode(composition).toString())
         )
     }
+
+    @Test
+    fun `serializa posicion de bloque para generar filas ancladas abajo`() {
+        val composition = ThemeCompositionValidator.parse(
+            """{"blocks":[{"type":"hero","text":"Apps"},{"type":"favorites_row","maxItems":8,"placement":"BOTTOM"}]}"""
+        )
+
+        assertEquals(BlockPlacement.BOTTOM, composition.blocks[1].placement)
+        assertEquals(composition, ThemeCompositionValidator.parse(ThemeCompositionValidator.encode(composition).toString()))
+    }
+
+    @Test
+    fun `acepta tarjetas multimedia declarativas con recursos del tema y accion opcional`() {
+        val composition = ThemeCompositionValidator.parse(
+            """[{"type":"media_row","text":"Canales","items":[{"label":"Canal local","imageAsset":"assets/channel.png","launchPackage":"com.example.channel"},{"label":"Imagen informativa","imageAsset":"assets/info.webp"}]}]"""
+        )
+
+        assertEquals(ThemeBlockType.MEDIA_ROW, composition.blocks.single().type)
+        assertEquals(2, composition.blocks.single().contentItems.size)
+        assertEquals("com.example.channel", composition.blocks.single().contentItems.first().launchPackage)
+        assertEquals(composition, ThemeCompositionValidator.parse(ThemeCompositionValidator.encode(composition).toString()))
+    }
+
+    @Test
+    fun `rechaza rutas de imagen inseguras y paquetes de accion mal formados`() {
+        assertThrows(ThemeArchiveException::class.java) {
+            ThemeCompositionValidator.parse("""[{"type":"hero","imageAsset":"../outside.png"}]""")
+        }
+        assertThrows(ThemeArchiveException::class.java) {
+            ThemeCompositionValidator.parse(
+                """[{"type":"media_row","items":[{"label":"Canal","imageAsset":"assets/channel.png","launchPackage":"not a package"}]}]"""
+            )
+        }
+    }
 }

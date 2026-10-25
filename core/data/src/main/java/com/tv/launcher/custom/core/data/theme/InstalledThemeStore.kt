@@ -79,13 +79,20 @@ class InstalledThemeStore(private val rootDirectory: File) {
                 if (!imageFile.isFile) return null
                 imageFile.toURI().toString()
             }
+            val assetUris = archive.assets.keys.associateWith { assetPath ->
+                val assetName = assetPath.substringAfterLast('/')
+                val assetFile = File(File(themeDirectory, "assets"), assetName)
+                if (!assetFile.isFile) return null
+                assetFile.toURI().toString()
+            }
             InstalledTheme(
                 id = manifest.id,
                 name = manifest.name,
                 layout = manifest.layout,
                 appearance = manifest.toAppearance(imageUri, manifest.id),
                 version = File(themeDirectory, "catalog-version.txt").takeIf { it.isFile }?.readText(),
-                composition = manifest.composition
+                composition = manifest.composition,
+                assetUris = assetUris
             )
         }.getOrNull()
     }

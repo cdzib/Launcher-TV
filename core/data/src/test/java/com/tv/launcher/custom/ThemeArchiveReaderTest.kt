@@ -99,10 +99,25 @@ class ThemeArchiveReaderTest {
     }
 
     @Test
+    fun `exporta Free My TV como theme zip importable`() {
+        val bytes = ThemeArchiveWriter.write(
+            appearance = LauncherAppearance(themeId = ThemeId.FREE_MY_TV),
+            backgroundAsset = null,
+            name = "Free My TV"
+        )
+
+        val archive = ThemeArchiveReader.read(bytes)
+        val manifest = ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
+
+        assertEquals(ThemeId.FREE_MY_TV, manifest.layout)
+    }
+
+    @Test
     fun `exporta composicion v2 que sobrevive round trip`() {
         val composition = ThemeComposition(listOf(
             ThemeBlock(ThemeBlockType.TITLE),
-            ThemeBlock(ThemeBlockType.APPS_GRID, maxItems = 16, columns = 4)
+            ThemeBlock(ThemeBlockType.APPS_GRID, maxItems = 16, columns = 4),
+            ThemeBlock(ThemeBlockType.FAVORITES_ROW, maxItems = 8, placement = BlockPlacement.BOTTOM)
         ))
         val bytes = ThemeArchiveWriter.write(
             LauncherAppearance(themeId = ThemeId.WEBOS),
@@ -114,6 +129,50 @@ class ThemeArchiveReaderTest {
         val manifest = ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
 
         assertEquals(composition, manifest.composition)
+    }
+
+    @Test
+    fun `zip multimedia solo se acepta cuando todos los recursos declarados existen`() {
+        val manifest = """{"formatVersion":2,"id":"40f9ac12-c6dd-4e7d-b8d5-18455d68f971","name":"Media","layout":"WEBOS","background":{"type":"solid","argb":"#FF101820"},"tileShape":"rounded","composition":[{"type":"media_row","items":[{"label":"Canal","imageAsset":"assets/channel.png"}]}]}"""
+        val channelAsset = pngHeader(width = 640, height = 360)
+
+        assertThrows(ThemeArchiveException::class.java) {
+            ThemeManifestValidator.parse(manifest, emptySet())
+        }
+
+        val archive = ThemeArchiveReader.read(zip(
+            "manifest.json" to manifest.toByteArray(),
+            "assets/channel.png" to channelAsset
+        ))
+        val parsedManifest = ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
+
+        assertEquals("assets/channel.png", parsedManifest.composition?.blocks?.single()?.contentItems?.single()?.imageAsset)
+    }
+
+    @Test
+    fun `exporta media row y su arte como un paquete importable`() {
+        val channelAsset = pngHeader(width = 640, height = 360)
+        val composition = ThemeComposition(listOf(
+            ThemeBlock(
+                type = ThemeBlockType.MEDIA_ROW,
+                text = "Canales del tema",
+                contentItems = listOf(ThemeContentItem("Canal local", "assets/channel.png"))
+            )
+        ))
+
+        val bytes = ThemeArchiveWriter.write(
+            appearance = LauncherAppearance(themeId = ThemeId.WEBOS),
+            backgroundAsset = null,
+            composition = composition,
+            name = "Media declarativa",
+            additionalAssets = mapOf("assets/channel.png" to channelAsset)
+        )
+
+        val archive = ThemeArchiveReader.read(bytes)
+        val manifest = ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
+
+        assertEquals(composition, manifest.composition)
+        assertEquals(channelAsset.size, archive.assets.getValue("assets/channel.png").size)
     }
 
     @Test

@@ -46,8 +46,10 @@ internal fun SettingsThemePreview(
     name: String,
     apps: ImmutableList<AppEntry>,
     data: CanvasData,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    assetUris: Map<String, String> = emptyMap()
 ) {
+    val previewData = remember(data, assetUris) { data.withThemeAssets(assetUris) }
     Layout(
         modifier = modifier.clipToBounds().clearAndSetSemantics { }
             .pointerInput(Unit) {
@@ -70,7 +72,7 @@ internal fun SettingsThemePreview(
                         SettingsBackgroundImage(appearance.backgroundImageUri, Modifier.fillMaxSize())
                         if (composition != null) {
                             CompositionCanvas(
-                                composition, data, Modifier.fillMaxSize(), name,
+                                composition, previewData, Modifier.fillMaxSize(), name,
                                 interactive = false, transparentBackground = true
                             )
                         } else {
@@ -83,6 +85,7 @@ internal fun SettingsThemePreview(
                                 ThemeId.ANDROID_TV -> AndroidTvLayout(apps, focus, {}, {})
                                 ThemeId.GOOGLE_TV -> GoogleTvLayout(apps, focus, {}, {})
                                 ThemeId.APPLE_TV -> AppleTvLayout(apps, focus, {}, {})
+                                ThemeId.FREE_MY_TV -> FreeMyTvLayout(apps, apps.firstOrNull(), focus, {}, {})
                             }
                         }
                     }

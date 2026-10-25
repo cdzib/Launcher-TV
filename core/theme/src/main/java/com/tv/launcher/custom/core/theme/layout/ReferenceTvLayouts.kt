@@ -47,8 +47,9 @@ import kotlinx.collections.immutable.ImmutableList
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
     val openApps = LocalOpenApps.current
+    val openSearch = LocalOpenSearch.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
     BoxWithConstraints(modifier.fillMaxSize().then(if (imageVisible) Modifier else Modifier.background(palette.background))) {
@@ -62,9 +63,10 @@ fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester,
             ) {
                 Text("TV", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 ClockText(14.sp)
-                ReferenceAction(stringResource(R.string.search_apps), openApps, Modifier.fillMaxWidth().height(44.dp))
+                ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.fillMaxWidth().height(44.dp))
                 ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.fillMaxWidth().height(44.dp).focusRequester(firstItemFocus), selected = true)
                 ReferenceAction(stringResource(R.string.launcher_settings), onOpenSettings, Modifier.fillMaxWidth().height(44.dp))
+                LauncherPersonalizationButton(onOpenPersonalization)
                 Text(stringResource(R.string.your_apps), fontSize = 13.sp, color = Color(0xFFC7BDB5))
                 apps.take(3).forEach { app ->
                     ReferenceAction(app.label, { onLaunch(app.packageName) }, Modifier.fillMaxWidth().height(44.dp))
@@ -80,7 +82,7 @@ fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester,
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
     val openApps = LocalOpenApps.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
@@ -88,7 +90,7 @@ fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequeste
         val appHeight = (maxHeight * 0.12f).coerceAtLeast(48.dp)
         val posterHeight = maxHeight * 0.23f
         Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ReferenceHeader("Android TV", firstItemFocus, openApps, onOpenSettings)
+            ReferenceHeader("Android TV", firstItemFocus, openApps, onOpenSettings, onOpenPersonalization)
             InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().weight(1f))
             Text(stringResource(R.string.your_apps), color = Color.White, fontSize = 14.sp)
             ReferenceApps(apps, onLaunch, 112.dp, appHeight)
@@ -100,7 +102,7 @@ fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequeste
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
     val openApps = LocalOpenApps.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
@@ -108,7 +110,7 @@ fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
         val posterHeight = maxHeight * 0.20f
         val appHeight = (maxHeight * 0.11f).coerceAtLeast(48.dp)
         Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            ReferenceHeader("Google TV", firstItemFocus, openApps, onOpenSettings)
+            ReferenceHeader("Google TV", firstItemFocus, openApps, onOpenSettings, onOpenPersonalization)
             InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().weight(1f))
             Text(stringResource(R.string.apps_for_you), color = Color.White, fontSize = 13.sp)
             InstalledAppCards(apps, onLaunch, posterHeight)
@@ -120,8 +122,9 @@ fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
     val openApps = LocalOpenApps.current
+    val openSearch = LocalOpenSearch.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
     BoxWithConstraints(modifier.fillMaxSize().then(if (imageVisible) Modifier else Modifier.background(palette.background))) {
@@ -130,10 +133,11 @@ fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, 
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().height(bannerHeight))
             Row(Modifier.fillMaxWidth().padding(horizontal = 32.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ReferenceAction("", openApps, Modifier.size(44.dp).focusRequester(firstItemFocus), description = stringResource(R.string.search_apps), icon = Icons.Outlined.Search)
+                ReferenceAction("", openSearch, Modifier.size(44.dp).focusRequester(firstItemFocus), description = stringResource(R.string.search_apps), icon = Icons.Outlined.Search)
                 ReferenceAction("", openApps, Modifier.size(44.dp), selected = true, description = stringResource(R.string.launcher_apps), icon = Icons.Outlined.Apps)
                 Box(Modifier.weight(1f)) { ReferenceApps(apps, onLaunch, 80.dp, 48.dp) }
                 ReferenceAction("", onOpenSettings, Modifier.size(44.dp), description = stringResource(R.string.launcher_settings), icon = Icons.Outlined.Settings)
+                LauncherPersonalizationButton(onOpenPersonalization)
             }
             Text(stringResource(R.string.your_apps), Modifier.padding(horizontal = 32.dp), color = Color(0xFFCCCCCC), fontSize = 13.sp)
             Column(Modifier.padding(horizontal = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -146,8 +150,9 @@ fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, 
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
     val openApps = LocalOpenApps.current
+    val openSearch = LocalOpenSearch.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
     BoxWithConstraints(modifier.fillMaxSize().then(if (imageVisible) Modifier else Modifier.background(palette.background))) {
@@ -156,8 +161,9 @@ fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
                 Text("Roku", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(24.dp))
                 ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.fillMaxWidth().height(44.dp), selected = true, square = true)
-                ReferenceAction(stringResource(R.string.search_apps), openApps, Modifier.fillMaxWidth().height(44.dp), square = true)
+                ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.fillMaxWidth().height(44.dp), square = true)
                 ReferenceAction(stringResource(R.string.launcher_settings), onOpenSettings, Modifier.fillMaxWidth().height(44.dp), square = true)
+                LauncherPersonalizationButton(onOpenPersonalization)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
@@ -175,13 +181,15 @@ fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
 }
 
 @Composable
-private fun ReferenceHeader(title: String, focus: FocusRequester, openApps: () -> Unit, openSettings: () -> Unit) {
+private fun ReferenceHeader(title: String, focus: FocusRequester, openApps: () -> Unit, openSettings: () -> Unit, onOpenPersonalization: () -> Unit) {
+    val openSearch = LocalOpenSearch.current
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, fontSize = 18.sp, color = Color.White)
-        ReferenceAction(stringResource(R.string.search_apps), openApps, Modifier.height(44.dp).focusRequester(focus))
+        ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.height(44.dp).focusRequester(focus))
         ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.height(44.dp), selected = true)
         Spacer(Modifier.weight(1f))
         ReferenceAction("", openSettings, Modifier.size(44.dp), description = stringResource(R.string.launcher_settings), icon = Icons.Outlined.Settings)
+        LauncherPersonalizationButton(onOpenPersonalization)
         ClockText(16.sp)
     }
 }
