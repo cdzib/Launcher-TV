@@ -47,7 +47,7 @@ fun ThemeId.toStyle(): LauncherStyle = when (this) {
         12.dp, 1.08f, LayoutKind.TOP_NAV, R.string.theme_fire_tv
     )
     ThemeId.ROKU -> LauncherStyle(
-        LauncherPalette(Color(0xFF24103C), Color(0xFF361955), Color.White, Color.White, Color(0xFFE5D4F5)),
+        LauncherPalette(Color(0xFF35134D), Color(0xFF361955), Color.White, Color.White, Color(0xFFE5D4F5)),
         10.dp, 1.06f, LayoutKind.SIDE_GRID, R.string.theme_roku
     )
     ThemeId.TIZEN -> LauncherStyle(

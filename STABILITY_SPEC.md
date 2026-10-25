@@ -41,6 +41,7 @@ Este cambio estabiliza acceso a Ajustes, guardado de apariencia, callbacks de b�
 - AC5: `TopBarStyle.ICONS` representa las pestañas configuradas.
 - AC6: importación/validación y decodificación de imágenes se hacen fuera de Main; fallos siguen produciendo UI recuperable.
 - AC7: los colores de fondo y acento seleccionados se leen de `LocalLauncherStyle` en los layouts integrados, no solo en búsqueda; un fondo de imagen mantiene transparentes sus raíces.
+- AC8: al cambiar de tema se descarta el color sólido específico del tema anterior para que se aplique el fondo de perfil del nuevo tema; un fondo de imagen elegido por el usuario se conserva.
 
 ## Testing y Definition of Done
 
@@ -58,6 +59,7 @@ Este cambio estabiliza acceso a Ajustes, guardado de apariencia, callbacks de b�
 | AC5 | Renderer Compose | `:app:assembleDebug` y `:app:assembleRelease` | PASS |
 | AC6 | LauncherScreen | `testDebugUnitTest`, builds Debug/Release y `lintDebug`; validación manual pendiente | Automatizado PASS; manual pendiente |
 | AC7 | Layouts webOS, Tizen y referencias | `:core:theme:compileDebugKotlin`; prueba `LauncherAppearance.toStyle` existente | PASS |
+| AC8 | HomeViewModel y paleta | `HomeViewModelTest`: rojo previo -> Roku usa morado de perfil | PASS |
 
 ## Ejecución final
 

@@ -116,6 +116,23 @@ class ThemeArchiveReaderTest {
         assertEquals(composition, manifest.composition)
     }
 
+    @Test
+    fun `zip de integracion personalizado valida layout fondo y composicion`() {
+        val bytes = javaClass.getResourceAsStream("/custom-layout-validation.zip")!!.use { it.readBytes() }
+        val archive = ThemeArchiveReader.read(bytes)
+        val manifest = ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
+
+        assertEquals("Custom Layout Preview", manifest.name)
+        assertEquals(ThemeId.ROKU, manifest.layout)
+        assertEquals(0xFF35134DL, (manifest.background as ThemeManifestBackground.Solid).argb)
+        assertEquals(4, manifest.composition?.blocks?.size)
+        val previewAppearance = manifest.toAppearance()
+        assertEquals(ThemeId.ROKU, previewAppearance.themeId)
+        assertEquals(0xFF35134DL, previewAppearance.backgroundColorArgb)
+        assertEquals(0xFFCE93D8L, previewAppearance.accentColorArgb)
+        assertEquals(ThemeId.ROKU, manifest.toAppearance(installedThemeId = manifest.id).themeId)
+    }
+
     private fun zip(vararg files: Pair<String, ByteArray>): ByteArray = ByteArrayOutputStream().use { output ->
         ZipOutputStream(output).use { zip ->
             files.forEach { (name, bytes) ->

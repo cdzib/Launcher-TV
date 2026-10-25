@@ -35,8 +35,8 @@ class HomeViewModelTest {
         override suspend fun launch(packageName: String) = DomainResult.Success(Unit)
     }
 
-    private class FakeTheme : ThemeRepository {
-        private val flow = MutableStateFlow(LauncherAppearance())
+    private class FakeTheme(initialAppearance: LauncherAppearance = LauncherAppearance()) : ThemeRepository {
+        private val flow = MutableStateFlow(initialAppearance)
         var failNextAppearanceWrite = false
         val savedAppearances = mutableListOf<LauncherAppearance>()
         override fun observeTheme(): Flow<ThemeId> = flow.map { it.themeId }
@@ -168,6 +168,19 @@ class HomeViewModelTest {
         val vm = viewModel(listOf(AppEntry("a", "A")))
         vm.onIntent(HomeIntent.CycleTheme)
         assertEquals(ThemeId.FIRE_TV, vm.state.value.themeId)
+    }
+
+    @Test
+    fun `cambiar de tema descarta color de fondo solido anterior`() {
+        val repository = FakeTheme(LauncherAppearance(backgroundColorArgb = 0xFFFF0000L))
+        val vm = viewModel(listOf(AppEntry("a", "A")), repository)
+
+        vm.onIntent(HomeIntent.SelectTheme(ThemeId.ROKU))
+
+        val appearance = (vm.state.value as HomeUiState.Success).appearance
+        assertEquals(ThemeId.ROKU, appearance.themeId)
+        assertEquals(null, appearance.backgroundColorArgb)
+        assertEquals(0xFF35134D.toInt(), appearance.toStyle().palette.background.toArgb())
     }
 
     @Test

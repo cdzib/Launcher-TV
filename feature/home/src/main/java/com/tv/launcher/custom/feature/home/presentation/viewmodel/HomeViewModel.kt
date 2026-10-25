@@ -52,7 +52,9 @@ class HomeViewModel @Inject constructor(
         when (intent) {
             is HomeIntent.Launch -> launch(intent.packageName)
             HomeIntent.CycleTheme -> cycleTheme()
-            is HomeIntent.SelectTheme -> updateAppearance { copy(themeId = intent.value, installedThemeId = null) }
+            is HomeIntent.SelectTheme -> updateAppearance {
+                copy(themeId = intent.value, installedThemeId = null, backgroundColorArgb = null)
+            }
             is HomeIntent.SelectAccent -> updateAppearance { copy(accent = intent.value, accentColorArgb = null) }
             is HomeIntent.SelectBackground -> updateAppearance { copy(background = intent.value, backgroundImageUri = null, backgroundColorArgb = null) }
             is HomeIntent.SelectBackgroundImage -> updateAppearance { copy(backgroundImageUri = intent.uri, backgroundColorArgb = null) }

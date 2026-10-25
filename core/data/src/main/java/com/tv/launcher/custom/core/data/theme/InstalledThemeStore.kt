@@ -83,20 +83,7 @@ class InstalledThemeStore(private val rootDirectory: File) {
                 id = manifest.id,
                 name = manifest.name,
                 layout = manifest.layout,
-                appearance = LauncherAppearance(
-                    themeId = manifest.layout,
-                    accent = AccentChoice.PROFILE,
-                    background = BackgroundChoice.PROFILE,
-                    tileShape = when (manifest.tileShape) {
-                        "rounded" -> TileShapeChoice.ROUNDED
-                        "square" -> TileShapeChoice.SQUARE
-                        else -> TileShapeChoice.PROFILE
-                    },
-                    backgroundImageUri = imageUri,
-                    backgroundColorArgb = (manifest.background as? ThemeManifestBackground.Solid)?.argb,
-                    accentColorArgb = manifest.accentArgb,
-                    installedThemeId = manifest.id
-                ),
+                appearance = manifest.toAppearance(imageUri, manifest.id),
                 version = File(themeDirectory, "catalog-version.txt").takeIf { it.isFile }?.readText(),
                 composition = manifest.composition
             )
