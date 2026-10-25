@@ -27,5 +27,6 @@ signing.properties
 # Local documentation and design references (not published for now)
 /docs/
 /design/
+/designs/
 /desing*/
 README.md
