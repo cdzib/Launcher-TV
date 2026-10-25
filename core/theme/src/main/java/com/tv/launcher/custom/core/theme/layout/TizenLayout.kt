@@ -45,9 +45,10 @@ fun TizenLayout(
     firstItemFocus: FocusRequester,
     onLaunch: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenPersonalization: () -> Unit = onOpenSettings
 ) {
-    val onOpenApps = LocalOpenApps.current
+    val onOpenSearch = LocalOpenSearch.current
     var showApps by remember { mutableStateOf(false) }
     val palette = LocalLauncherStyle.current.palette
     val rootBackground = if (com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible.current) Color.Transparent else palette.background
@@ -58,10 +59,11 @@ fun TizenLayout(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             TizenAction("", stringResource(R.string.launcher_settings), onOpenSettings, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.AccountCircle)
-            TizenAction("", stringResource(R.string.search_apps), onOpenApps, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Search)
+            TizenAction("", stringResource(R.string.search_apps), onOpenSearch, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Search)
             TizenAction("", stringResource(R.string.launcher_apps), { showApps = true }, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Apps)
             Spacer(Modifier.weight(1f))
             TizenAction("", stringResource(R.string.launcher_settings), onOpenSettings, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Settings)
+            LauncherPersonalizationButton(onOpenPersonalization)
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
             val heroHeight = maxHeight * 0.46f
@@ -82,7 +84,7 @@ fun TizenLayout(
                 }
                 LazyRow(contentPadding = PaddingValues(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
-                        TizenAction("", stringResource(R.string.search_apps), onOpenApps, Modifier.size(appSize), selected = true, icon = Icons.Outlined.Search)
+                        TizenAction("", stringResource(R.string.search_apps), onOpenSearch, Modifier.size(appSize), selected = true, icon = Icons.Outlined.Search)
                     }
                     items(apps, key = AppEntry::packageName) { app ->
                         val shape = RoundedCornerShape(6.dp)

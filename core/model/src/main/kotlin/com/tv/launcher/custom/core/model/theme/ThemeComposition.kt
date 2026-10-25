@@ -1,6 +1,7 @@
 package com.tv.launcher.custom.core.model.theme
 
-enum class ThemeBlockType { TITLE, APPS_ROW, APPS_GRID, FAVORITES_ROW, SPACER, HERO, CHIPS_ROW, RECENTS_ROW }
+enum class ThemeBlockType { TITLE, APPS_ROW, APPS_GRID, FAVORITES_ROW, SPACER, HERO, CHIPS_ROW, RECENTS_ROW, MEDIA_ROW }
+enum class BlockPlacement { CONTENT, BOTTOM }
 enum class BlockAlign { START, CENTER, END }
 enum class CardAspect(val ratio: Float) { WIDE(16f / 9f), SQUARE(1f), PORTRAIT(2f / 3f), CLASSIC(4f / 3f), ULTRAWIDE(21f / 9f) }
 enum class CardStyle { FILLED, LIGHT, GLASS, OUTLINE, NONE }
@@ -12,6 +13,7 @@ enum class RailStyle { LIST, ICONS, ICONS_LABELS }
 
 data class ThemeBlock(
     val type: ThemeBlockType,
+    val placement: BlockPlacement = BlockPlacement.CONTENT,
     val maxItems: Int? = null,
     val columns: Int? = null,
     val weight: Int? = null,
@@ -32,10 +34,12 @@ data class ThemeBlock(
     val bgColor: Int? = null,
     val bgAlpha: Int? = null,
     val textColor: Int? = null,
-    val multicolor: Boolean? = null
+    val multicolor: Boolean? = null,
+    val imageAsset: String? = null,
+    val contentItems: List<ThemeContentItem> = emptyList()
 ) {
     fun usesCardLayout() = type == ThemeBlockType.APPS_ROW || type == ThemeBlockType.APPS_GRID ||
-        type == ThemeBlockType.FAVORITES_ROW || type == ThemeBlockType.RECENTS_ROW
+        type == ThemeBlockType.FAVORITES_ROW || type == ThemeBlockType.RECENTS_ROW || type == ThemeBlockType.MEDIA_ROW
     fun supportsSectionHeader() = usesCardLayout()
     fun rTextSize() = textSize ?: when (type) {
         ThemeBlockType.TITLE -> 28; ThemeBlockType.HERO -> 34; ThemeBlockType.CHIPS_ROW -> 16; else -> 18
@@ -45,11 +49,12 @@ data class ThemeBlock(
     fun rSpacing() = spacing ?: if (type == ThemeBlockType.CHIPS_ROW) 12 else 14
     fun rItemH() = itemHeight ?: when (type) {
         ThemeBlockType.HERO -> 190; ThemeBlockType.CHIPS_ROW -> 44
-        ThemeBlockType.FAVORITES_ROW -> 64; ThemeBlockType.RECENTS_ROW -> 108; else -> 84
+        ThemeBlockType.FAVORITES_ROW -> 64; ThemeBlockType.RECENTS_ROW -> 108; ThemeBlockType.MEDIA_ROW -> 140; else -> 84
     }
     fun rAspect() = aspect ?: when (type) {
         ThemeBlockType.APPS_ROW, ThemeBlockType.APPS_GRID -> CardAspect.CLASSIC
         ThemeBlockType.FAVORITES_ROW -> CardAspect.SQUARE
+        ThemeBlockType.MEDIA_ROW, ThemeBlockType.RECENTS_ROW -> CardAspect.WIDE
         else -> CardAspect.WIDE
     }
     fun rCardStyle() = cardStyle ?: CardStyle.FILLED
@@ -58,6 +63,12 @@ data class ThemeBlock(
     fun rFocusScale() = (focusScale ?: 112) / 100f
     fun rCorner() = cornerRadius ?: 12
 }
+
+data class ThemeContentItem(
+    val label: String,
+    val imageAsset: String,
+    val launchPackage: String? = null
+)
 
 data class TopBarConfig(
     val style: TopBarStyle = TopBarStyle.TABS_PILL,

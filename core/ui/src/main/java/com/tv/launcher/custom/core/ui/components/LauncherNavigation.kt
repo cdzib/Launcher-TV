@@ -38,12 +38,13 @@ import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.model.apps.AppEntry
 
 val LocalOpenApps = staticCompositionLocalOf<() -> Unit> { {} }
+val LocalOpenSearch = staticCompositionLocalOf<() -> Unit> { {} }
 
 @Composable
 fun LauncherNavigation(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
-    val onOpenApps = LocalOpenApps.current
+    val onOpenSearch = LocalOpenSearch.current
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = onOpenApps) { Text(stringResource(R.string.search_apps)) }
+        Button(onClick = onOpenSearch) { Text(stringResource(R.string.search_apps)) }
         Button(onClick = onOpenSettings) { Text(stringResource(R.string.launcher_settings)) }
     }
 }

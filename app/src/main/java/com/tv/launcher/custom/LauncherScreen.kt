@@ -10,8 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -45,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -145,6 +150,7 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
     val appearance = successState?.appearance
     var showLauncherSettings by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
     var pendingTheme by remember { mutableStateOf<PendingThemeImport?>(null) }
     var showBundledThemePicker by remember { mutableStateOf(false) }
     var showRemoteThemes by remember { mutableStateOf(false) }
@@ -168,14 +174,41 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
     }
     var activeComposition by remember { mutableStateOf<ThemeComposition?>(null) }
     var activeCompositionName by remember { mutableStateOf("") }
-    var installedThemes by remember { mutableStateOf(emptyList<InstalledTheme>()) }
-    var themeLibraryRefresh by remember { mutableStateOf(0) }
+    var activeThemeAssetUris by remember { mutableStateOf(emptyMap<String, String>()) }
+    var editorAssetBytes by remember { mutableStateOf(emptyMap<String, ByteArray>()) }
+    var editorAssetUris by remember { mutableStateOf(emptyMap<String, String>()) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    BackHandler(enabled = showApps) { showApps = false }
+    val editorAssetsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) coroutineScope.launch {
+            val importedAssets = withContext(Dispatchers.IO) {
+                uris.mapNotNull { uri ->
+                    runCatching {
+                        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBounded(5 * 1024 * 1024) }
+                            ?: error("Could not open image")
+                        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: error("Invalid image")
+                        val output = ByteArrayOutputStream()
+                        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                        val filename = "image_${java.util.UUID.randomUUID()}.png"
+                        "assets/$filename" to output.toByteArray()
+                    }.getOrNull()
+                }.toMap()
+            }
+            editorAssetBytes = editorAssetBytes + importedAssets
+            editorAssetUris = editorAssetUris + importedAssets.mapValues { (_, bytes) ->
+                val file = java.io.File(context.cacheDir, "theme-preview-${bytes.contentHashCode()}.png")
+                file.writeBytes(bytes)
+                file.toURI().toString()
+            }
+        }
+    }
+    var installedThemes by remember { mutableStateOf(emptyList<InstalledTheme>()) }
+    var themeLibraryRefresh by remember { mutableStateOf(0) }
     val installedThemeStore = remember(context) {
         InstalledThemeStore(java.io.File(context.filesDir, "installed_themes"))
     }
-    val compositionPreviewData: CanvasData = remember(state, onIntent, context) {
+    val compositionPreviewData: CanvasData = remember(state, onIntent, context, activeThemeAssetUris) {
         val success = state as? HomeUiState.Success
         val apps = success?.apps.orEmpty()
         val favoritePackages = success?.appearance?.shortcuts?.values?.toSet().orEmpty()
@@ -184,8 +217,11 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
             favorites = apps.filter { it.packageName in favoritePackages },
             onLaunch = { packageName -> onIntent(HomeIntent.Launch(packageName)) },
             onOpenApps = { showApps = true },
-            onOpenSettings = { showLauncherSettings = true },
-            onUnavailableNavigation = {}
+            onOpenSettings = { openSystemSettings(context) },
+            onOpenPersonalization = { showLauncherSettings = true },
+            onOpenSearch = { showSearch = true },
+            onUnavailableNavigation = {},
+            assetUris = activeThemeAssetUris
         )
     }
     LaunchedEffect(appearance?.installedThemeId, themeLibraryRefresh) {
@@ -193,6 +229,7 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
         val active = if (themeId == null) null else withContext(Dispatchers.IO) { installedThemeStore.load(themeId) }
         activeComposition = active?.composition
         activeCompositionName = active?.name.orEmpty()
+        activeThemeAssetUris = active?.assetUris.orEmpty()
     }
     LaunchedEffect(showLauncherSettings, themeLibraryRefresh) {
         if (showLauncherSettings) {
@@ -317,22 +354,36 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                     actionLabel = stringResource(R.string.retry),
                     onAction = { onIntent(HomeIntent.Retry) }
                 )
-                 is HomeUiState.Success -> CompositionLocalProvider(
-                     LocalOpenApps provides { showApps = true },
+                  is HomeUiState.Success -> CompositionLocalProvider(
+                      LocalOpenApps provides { showApps = true },
+                      LocalOpenSearch provides { showApps = false; showSearch = true },
                      LocalShortcutPackages provides state.appearance.shortcuts,
                      LocalSetShortcut provides { slot, packageName -> onIntent(HomeIntent.SelectShortcut(slot, packageName)) }
-                 ) {
-                    HomeContent(
+                  ) {
+                    Box(Modifier.fillMaxSize()) {
+                     HomeContent(
                      state = state,
                      onIntent = onIntent,
-                     onOpenSettings = { showLauncherSettings = true },
+                      onOpenSettings = { openSystemSettings(context) },
                       onUnavailableNavigation = { label ->
                           Toast.makeText(context, context.getString(R.string.custom_section_unavailable, label), Toast.LENGTH_SHORT).show()
                       },
                       customComposition = activeComposition,
-                     customThemeName = activeCompositionName
-                    )
-                  }
+                      customThemeName = activeCompositionName,
+                      customThemeAssets = activeThemeAssetUris,
+                      onOpenPersonalization = { showLauncherSettings = true },
+                      onOpenSearch = { showSearch = true }
+                     )
+                     if (showApps) {
+                         AppDrawerScreen(
+                             apps = state.apps,
+                             onLaunch = { packageName -> showApps = false; onIntent(HomeIntent.Launch(packageName)) },
+                             onBack = { showApps = false },
+                             onOpenSystemSettings = { openSystemSettings(context) }
+                         )
+                     }
+                    }
+                   }
             }
           }
           if (state !is HomeUiState.Success) {
@@ -374,6 +425,8 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                     editingThemeId = null
                     editingThemeAppearance = null
                     editingThemeVersion = null
+                    editorAssetBytes = emptyMap()
+                    editorAssetUris = emptyMap()
                     compositionName = "Mi inicio"
                     editedComposition = ThemeComposition(listOf(
                         ThemeBlock(ThemeBlockType.TITLE),
@@ -394,10 +447,12 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                             editingThemeAppearance = installed.appearance
                             editingThemeVersion = installed.version
                             compositionName = installed.name
-                            editedComposition = installed.composition ?: ThemeComposition(listOf(
+                             editedComposition = installed.composition ?: ThemeComposition(listOf(
                                 ThemeBlock(ThemeBlockType.TITLE),
                                 ThemeBlock(ThemeBlockType.APPS_ROW, maxItems = 8)
-                            ))
+                             ))
+                             editorAssetBytes = ThemeArchiveReader.read(archiveBytes).assets
+                             editorAssetUris = installed.assetUris
                             showCompositionEditor = true
                         } else {
                             Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
@@ -453,7 +508,9 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                 name = compositionName,
                 onNameChange = { if (!isSavingComposition) compositionName = it },
                 composition = editedComposition,
-                previewData = compositionPreviewData,
+                previewData = compositionPreviewData.withThemeAssets(editorAssetUris),
+                availableAssetPaths = editorAssetBytes.keys.sorted(),
+                onImportAssets = { editorAssetsPicker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) },
                 onCompositionChange = { if (!isSavingComposition) editedComposition = it },
                 isEditing = editingThemeId != null,
                 isSaving = isSavingComposition,
@@ -497,7 +554,8 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                                         backgroundAsset,
                                         composition = editedComposition,
                                         name = compositionName,
-                                        id = existingThemeId ?: java.util.UUID.randomUUID().toString()
+                                        id = existingThemeId ?: java.util.UUID.randomUUID().toString(),
+                                        additionalAssets = editorAssetBytes
                                     )
                                 }
                                 withContext(Dispatchers.IO) {
@@ -643,17 +701,65 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                 }
             }
         }
-        if (showApps && state is HomeUiState.Success) {
+        if (showSearch && state is HomeUiState.Success) {
             AppSearchDialog(
                 apps = successState?.apps ?: persistentListOf(),
                 onLaunch = { packageName -> onIntent(HomeIntent.Launch(packageName)) },
-                onDismiss = { showApps = false },
+                onDismiss = { showSearch = false },
                 onOpenSettings = {
-                    showApps = false
-                    showLauncherSettings = true
+                    showSearch = false
+                    openSystemSettings(context)
                 }
             )
         }
+        }
+    }
+}
+
+private fun openSystemSettings(context: Context) {
+    val intent = Intent(android.provider.Settings.ACTION_SETTINGS)
+    if (context !is android.app.Activity) intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }.onFailure {
+        Toast.makeText(context, R.string.system_settings_unavailable, Toast.LENGTH_SHORT).show()
+    }
+}
+
+@Composable
+private fun AppDrawerScreen(
+    apps: List<com.tv.launcher.custom.core.model.apps.AppEntry>,
+    onLaunch: (String) -> Unit,
+    onBack: () -> Unit,
+    onOpenSystemSettings: () -> Unit
+) {
+    val firstAppFocus = remember { FocusRequester() }
+    LaunchedEffect(apps) { runCatching { firstAppFocus.requestFocus() } }
+    androidx.tv.material3.Surface(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 32.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = onBack) { Text("‹") }
+                    Text(stringResource(R.string.launcher_all_apps), fontSize = 28.sp)
+                }
+                Button(onClick = onOpenSystemSettings) { Text(stringResource(R.string.system_settings)) }
+            }
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(150.dp),
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(apps, key = { it.packageName }) { app ->
+                    Button(
+                        onClick = { onLaunch(app.packageName) },
+                        modifier = Modifier.fillMaxWidth().then(if (app == apps.firstOrNull()) Modifier.focusRequester(firstAppFocus) else Modifier)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            AppIcon(app.packageName, Modifier.padding(8.dp).size(64.dp))
+                            Text(app.label, maxLines = 1)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -665,7 +771,10 @@ private val BUNDLED_DEMO_THEMES = listOf(
     "tizen-demo.zip" to "Tizen",
     "android-tv-demo.zip" to "Android TV",
     "google-tv-demo.zip" to "Google TV",
-    "apple-tv-demo.zip" to "Apple TV"
+    "apple-tv-demo.zip" to "Apple TV",
+    "free-my-tv-demo.zip" to "Free My TV",
+    "launch-dock-demo.zip" to "Launch Dock",
+    "side-stream-demo.zip" to "Side Stream"
 )
 
 @Composable

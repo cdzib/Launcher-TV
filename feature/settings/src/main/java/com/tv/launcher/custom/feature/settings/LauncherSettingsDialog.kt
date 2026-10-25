@@ -182,7 +182,8 @@ private fun LauncherSettingsContent(
                                         previewAppearance, previewTheme?.composition, previewName,
                                         apps, safePreviewData,
                                         Modifier.weight(if (compact) 1.1f else 1.9f).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp))
-                                            .border(1.dp, SettingsColors.divider, RoundedCornerShape(12.dp))
+                                            .border(1.dp, SettingsColors.divider, RoundedCornerShape(12.dp)),
+                                        assetUris = previewTheme?.assetUris.orEmpty()
                                     )
                                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
                                         Text(previewName, color = SettingsColors.text, fontSize = if (compact) 20.sp else 24.sp,
@@ -253,7 +254,8 @@ private fun LauncherSettingsContent(
                             Column {
                                 SettingsThemePreview(appearance, activeTheme?.composition,
                                     activeName, apps, safePreviewData,
-                                    Modifier.fillMaxWidth(0.7f).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)))
+                                    Modifier.fillMaxWidth(0.7f).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)),
+                                    assetUris = activeTheme?.assetUris.orEmpty())
                             }
                             Column {
                                 SettingsActionRow {
@@ -309,7 +311,8 @@ private fun LauncherSettingsContent(
                             Column {
                                 SettingsThemePreview(appearance, activeTheme?.composition,
                                     activeName, apps, safePreviewData,
-                                    Modifier.fillMaxWidth(0.7f).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)))
+                                    Modifier.fillMaxWidth(0.7f).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp)),
+                                    assetUris = activeTheme?.assetUris.orEmpty())
                             }
                             SettingsSectionTitle(stringResource(R.string.appearance_accent))
                             Column {
@@ -458,7 +461,7 @@ private fun SettingsThemeTile(
     ) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
             SettingsThemePreview(theme.appearance, theme.composition, theme.name, apps, data,
-                Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)))
+                Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)), assetUris = theme.assetUris)
             Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().background(Color(0xE612171E)).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(theme.name, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 if (isActive) {

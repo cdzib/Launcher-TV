@@ -90,7 +90,14 @@ object ThemeManifestValidator {
         val composition = if (formatVersion == 2) {
             val raw = runCatching { root.getValue("composition").toString() }
                 .getOrElse { throw ThemeArchiveException("Theme composition is required") }
-            ThemeCompositionValidator.parse(raw)
+            ThemeCompositionValidator.parse(raw).also { themeComposition ->
+                val referencedAssets = themeComposition.blocks.flatMap { block ->
+                    listOfNotNull(block.imageAsset) + block.contentItems.map { it.imageAsset }
+                }
+                if (referencedAssets.any { it !in availableAssets }) {
+                    throw ThemeArchiveException("Theme composition references a missing asset")
+                }
+            }
         } else null
         return ThemeManifest(id, name, layout, accent, background, tileShape, composition)
     }

@@ -45,7 +45,8 @@ fun BottomBarLayout(
     firstItemFocus: FocusRequester,
     onLaunch: (String) -> Unit,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenPersonalization: () -> Unit = onOpenSettings
 ) {
     val palette = LocalLauncherStyle.current.palette
     val featuredApp = apps.first()
@@ -64,6 +65,7 @@ fun BottomBarLayout(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 WifiStatusIndicator()
                 LauncherNavigation(onOpenSettings)
+                LauncherPersonalizationButton(onOpenPersonalization)
             }
         }
         if (expandFocused) {

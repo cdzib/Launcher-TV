@@ -7,12 +7,18 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.put
+import kotlinx.serialization.json.add
 import kotlin.math.abs
+
+private const val MAX_MEDIA_ITEMS = 20
+private val ASSET_PATH_PATTERN = Regex("assets/[A-Za-z0-9_-]+\\.(png|jpg|jpeg|webp)")
+private val PACKAGE_NAME_PATTERN = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+")
 
 object ThemeCompositionValidator {
     private val json = Json { isLenient = false; ignoreUnknownKeys = false }
@@ -28,10 +34,11 @@ object ThemeCompositionValidator {
         ThemeBlockType.SPACER to "spacer",
         ThemeBlockType.HERO to "hero",
         ThemeBlockType.CHIPS_ROW to "chips_row",
-        ThemeBlockType.RECENTS_ROW to "recents_row"
+        ThemeBlockType.RECENTS_ROW to "recents_row",
+        ThemeBlockType.MEDIA_ROW to "media_row"
     )
     private val COMPOSITION_KEYS = setOf("blocks", "spacing", "padding", "bgColor", "bgColor2", "bgStyle", "topBar", "rail")
-    private val COMMON_KEYS = setOf("align", "padding", "bgColor", "bgAlpha", "textColor")
+    private val COMMON_KEYS = setOf("align", "padding", "bgColor", "bgAlpha", "textColor", "placement")
 
     fun parse(raw: String): ThemeComposition {
         val document = try {
@@ -82,13 +89,20 @@ object ThemeCompositionValidator {
             ThemeBlockType.APPS_ROW, ThemeBlockType.FAVORITES_ROW, ThemeBlockType.RECENTS_ROW -> setOf("type", "maxItems")
             ThemeBlockType.APPS_GRID -> setOf("type", "columns", "maxItems")
             ThemeBlockType.SPACER -> setOf("type", "weight")
+            ThemeBlockType.MEDIA_ROW -> setOf("type", "items")
         }
         val optional = when (type) {
-            ThemeBlockType.SPACER -> emptySet()
+            ThemeBlockType.SPACER -> setOf("placement")
             ThemeBlockType.TITLE -> COMMON_KEYS + setOf("text", "textSize", "align")
-            ThemeBlockType.HERO -> COMMON_KEYS + setOf("text", "subtitle", "buttonText", "textSize", "itemHeight", "cornerRadius")
+            ThemeBlockType.HERO -> COMMON_KEYS + setOf(
+                "text", "subtitle", "buttonText", "textSize", "itemHeight", "cornerRadius", "imageAsset"
+            )
             ThemeBlockType.CHIPS_ROW -> COMMON_KEYS + setOf(
                 "text", "textSize", "spacing", "itemHeight", "cornerRadius", "multicolor", "focusStyle", "focusScale"
+            )
+            ThemeBlockType.MEDIA_ROW -> COMMON_KEYS + setOf(
+                "text", "textSize", "spacing", "itemHeight", "aspect", "cardStyle", "labelPos",
+                "focusStyle", "focusScale", "cornerRadius", "maxItems"
             )
             // Filas, favoritos, recientes y cuadrícula. itemWidth/showLabels = formato legado (se migran).
             else -> COMMON_KEYS + setOf(
@@ -106,6 +120,7 @@ object ThemeCompositionValidator {
 
         return ThemeBlock(
             type = type,
+            placement = item.optionalEnum<BlockPlacement>("placement") ?: BlockPlacement.CONTENT,
             maxItems = item.optionalInt("maxItems", if (type == ThemeBlockType.APPS_GRID) 1..48 else 1..20),
             columns = item.optionalInt("columns", 2..8),
             weight = item.optionalInt("weight", 1..12),
@@ -126,7 +141,9 @@ object ThemeCompositionValidator {
             bgColor = item.optionalColor("bgColor"),
             bgAlpha = item.optionalInt("bgAlpha", 0..100),
             textColor = item.optionalColor("textColor"),
-            multicolor = item.optionalBoolean("multicolor")
+            multicolor = item.optionalBoolean("multicolor"),
+            imageAsset = item.optionalAssetPath("imageAsset"),
+            contentItems = if (type == ThemeBlockType.MEDIA_ROW) item.parseContentItems() else emptyList()
         )
     }
 
@@ -193,6 +210,7 @@ object ThemeCompositionValidator {
 
     private fun encodeBlock(block: ThemeBlock): JsonObject = buildJsonObject {
         put("type", TYPE_NAMES.getValue(block.type))
+        if (block.placement != BlockPlacement.CONTENT) put("placement", block.placement.name)
         block.maxItems?.let { put("maxItems", it) }
         block.columns?.let { put("columns", it) }
         block.weight?.let { put("weight", it) }
@@ -214,6 +232,18 @@ object ThemeCompositionValidator {
         block.bgAlpha?.let { put("bgAlpha", it) }
         block.textColor?.let { put("textColor", hex(it)) }
         block.multicolor?.let { put("multicolor", it) }
+        block.imageAsset?.let { put("imageAsset", it) }
+        if (block.type == ThemeBlockType.MEDIA_ROW) {
+            put("items", buildJsonArray {
+                block.contentItems.forEach { item ->
+                    add(buildJsonObject {
+                        put("label", item.label)
+                        put("imageAsset", item.imageAsset)
+                        item.launchPackage?.let { put("launchPackage", it) }
+                    })
+                }
+            })
+        }
     }
 
     private fun encodeTopBar(c: TopBarConfig): JsonObject = buildJsonObject {
@@ -289,4 +319,37 @@ object ThemeCompositionValidator {
         if (!raw.matches(Regex("#[A-Fa-f0-9]{8}"))) throw ThemeArchiveException("Invalid $key color")
         return raw.substring(1).toLong(16).toInt()
     }
+
+    private fun JsonObject.optionalAssetPath(key: String): String? = optionalString(key, 80)?.also { path ->
+        if (!path.matches(ASSET_PATH_PATTERN)) throw ThemeArchiveException("Invalid theme asset path")
+    }
+
+    private fun JsonObject.parseContentItems(): List<ThemeContentItem> {
+        val values = this["items"] as? JsonArray
+            ?: throw ThemeArchiveException("Media row items must be an array")
+        if (values.size > MAX_MEDIA_ITEMS) {
+            throw ThemeArchiveException("Media row cannot contain more than $MAX_MEDIA_ITEMS items")
+        }
+        return values.map { element ->
+            val item = element as? JsonObject ?: throw ThemeArchiveException("Media item must be an object")
+            item.checkKeys(setOf("label", "imageAsset"), setOf("launchPackage"), "Invalid media item fields")
+            val launchPackage = item.optionalString("launchPackage", 200)
+            if (launchPackage != null && !launchPackage.matches(PACKAGE_NAME_PATTERN)) {
+                throw ThemeArchiveException("Invalid media item launch package")
+            }
+            ThemeContentItem(
+                label = item.requiredString("label", 60),
+                imageAsset = item.requiredAssetPath("imageAsset"),
+                launchPackage = launchPackage
+            )
+        }
+    }
+
+    private fun JsonObject.requiredString(key: String, maxLength: Int): String =
+        optionalString(key, maxLength)?.takeIf { it.isNotBlank() }
+            ?: throw ThemeArchiveException("Media item field '$key' is required")
+
+    private fun JsonObject.requiredAssetPath(key: String): String =
+        optionalAssetPath(key) ?: throw ThemeArchiveException("Media item asset is required")
+
 }

@@ -63,6 +63,15 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.tv.launcher.custom.core.ui.components.LauncherPersonalizationButton
+import com.tv.launcher.custom.core.ui.components.isPersonalizationLabel
+import com.tv.launcher.custom.core.ui.components.shouldShowRailProfileAvatar
+import com.tv.launcher.custom.core.ui.components.getRenderedTopBarTabs
+import com.tv.launcher.custom.core.ui.components.isSystemSettingsLabel as isSettingsLabel
+import com.tv.launcher.custom.core.ui.components.shouldShowTopBarSearchButton
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.SportsEsports
 import androidx.compose.material.icons.filled.SportsSoccer
@@ -122,9 +131,16 @@ fun CompositionCanvas(
     interactive: Boolean = false,
     selectedBlock: Int = -1,
     transparentBackground: Boolean = false,
-    firstItemFocusRequester: FocusRequester? = null
+    firstItemFocusRequester: FocusRequester? = null,
+    onOpenPersonalization: (() -> Unit)? = null,
+    onOpenSystemSettingsFallback: (() -> Unit)? = null
 ) {
     val palette = LocalLauncherStyle.current.palette
+    val settingsInTopBar = composition.topBar?.let { config ->
+        topBarShowsSettings(config) || (config.style != TopBarStyle.MINIMAL && config.tabs.orEmpty().split(',').any(::isSettingsLabel))
+    } ?: false
+    val personalizationInRail = composition.rail != null && (composition.topBar == null ||
+        (!settingsInTopBar && composition.rail?.items.orEmpty().split(',').any(::isSettingsLabel)))
     BoxWithConstraints(modifier) {
         val k = (maxWidth.value / REFERENCE_WIDTH_DP).coerceAtLeast(if (interactive) 0.5f else 0.05f)
         CompositionLocalProvider(LocalCanvasScale provides k) {
@@ -141,39 +157,71 @@ fun CompositionCanvas(
             ) SolidColor(Color.Transparent) else brush
             Box(Modifier.fillMaxSize().background(canvasBackground).clipToBounds()) {
                 Row(Modifier.fillMaxSize()) {
-                    composition.rail?.let { Rail(it, data, interactive) }
+                    composition.rail?.let {
+                        Rail(it, data, interactive, onOpenPersonalization.takeIf { personalizationInRail },
+                            onOpenSystemSettingsFallback.takeIf { composition.topBar == null })
+                    }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
-                        composition.topBar?.let { TopBar(it, data, interactive) }
+                        composition.topBar?.let { TopBar(it, data, interactive, onOpenPersonalization.takeUnless { personalizationInRail }, onOpenSystemSettingsFallback) }
+                        if (composition.topBar == null && composition.rail == null && (onOpenPersonalization != null || onOpenSystemSettingsFallback != null)) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 24.d(), vertical = 8.d()), horizontalArrangement = Arrangement.spacedBy(12.d(), Alignment.End)) {
+                                onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", palette.onBackground, interactive, it) }
+                                onOpenPersonalization?.let { LauncherPersonalizationButton(it) }
+                            }
+                        }
                         val pad = (composition.padding ?: 24).d()
-                        val hasTitleBlock = composition.blocks.any { it.type == ThemeBlockType.TITLE }
+                        val contentBlocks = composition.blocks.withIndex().filter { it.value.placement == BlockPlacement.CONTENT }
+                        val bottomBlocks = composition.blocks.withIndex().filter { it.value.placement == BlockPlacement.BOTTOM }
+                        val hasTitleBlock = contentBlocks.any { it.value.type == ThemeBlockType.TITLE }
                         val firstFocusableBlock = composition.blocks.indexOfFirst { block ->
                             block.type in setOf(
                                 ThemeBlockType.APPS_ROW,
                                 ThemeBlockType.APPS_GRID,
                                 ThemeBlockType.FAVORITES_ROW,
-                                ThemeBlockType.RECENTS_ROW
+                                ThemeBlockType.RECENTS_ROW,
+                                ThemeBlockType.MEDIA_ROW
                             ) && data.itemCount(block) > 0
+                                && data.isItemClickable(block, 0)
                         }
-                        Column(
-                            Modifier.fillMaxWidth().weight(1f)
-                                .then(if (interactive) Modifier.verticalScroll(rememberScrollState()) else Modifier)
-                                .padding(
-                                    start = pad,
-                                    end = pad,
-                                    top = if (composition.topBar == null && composition.rail == null && !hasTitleBlock) 48.d() else pad / 2,
-                                    bottom = pad / 2
-                                ),
-                            verticalArrangement = Arrangement.spacedBy((composition.spacing ?: 16).d())
-                        ) {
-                            composition.blocks.forEachIndexed { i, block ->
-                                BlockView(
-                                    block = block,
-                                    title = title,
-                                    data = data,
-                                    interactive = interactive,
-                                    selected = i == selectedBlock,
-                                    firstItemFocusRequester = firstItemFocusRequester.takeIf { i == firstFocusableBlock }
-                                )
+                        Column(Modifier.fillMaxWidth().weight(1f)) {
+                            Column(
+                                Modifier.fillMaxWidth().weight(1f)
+                                    .then(if (interactive) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                                    .padding(
+                                        start = pad,
+                                        end = pad,
+                                        top = if (composition.topBar == null && composition.rail == null && !hasTitleBlock) 48.d() else pad / 2,
+                                        bottom = pad / 2
+                                    ),
+                                verticalArrangement = Arrangement.spacedBy((composition.spacing ?: 16).d())
+                            ) {
+                                contentBlocks.forEach { (i, block) ->
+                                    BlockView(
+                                        block = block,
+                                        title = title,
+                                        data = data,
+                                        interactive = interactive,
+                                        selected = i == selectedBlock,
+                                        firstItemFocusRequester = firstItemFocusRequester.takeIf { i == firstFocusableBlock }
+                                    )
+                                }
+                            }
+                            if (bottomBlocks.isNotEmpty()) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(horizontal = pad, vertical = pad / 2),
+                                    verticalArrangement = Arrangement.spacedBy((composition.spacing ?: 16).d())
+                                ) {
+                                    bottomBlocks.forEach { (i, block) ->
+                                        BlockView(
+                                            block = block,
+                                            title = title,
+                                            data = data,
+                                            interactive = interactive,
+                                            selected = i == selectedBlock,
+                                            firstItemFocusRequester = firstItemFocusRequester.takeIf { i == firstFocusableBlock }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -396,10 +444,10 @@ private fun AppCard(
         }
     ) {
         Tile(
-            interactive = interactive,
+            interactive = interactive && data.isItemClickable(block, index),
             onClick = { data.onItemClick(block, index) },
             modifier = Modifier.size(w.d(), h.d())
-                .then(focusRequester?.let(Modifier::focusRequester) ?: Modifier)
+                .then(focusRequester?.takeIf { data.isItemClickable(block, index) }?.let(Modifier::focusRequester) ?: Modifier)
                 .then(if (style == CardStyle.OUTLINE) Modifier.border(1.dp, palette.onMuted, shape) else Modifier),
             shape = shape,
             container = container,
@@ -494,6 +542,7 @@ private fun Chips(block: ThemeBlock, data: CanvasData, interactive: Boolean) {
 private fun iconForLabel(label: String): ImageVector? {
     val l = label.lowercase()
     return when {
+        isPersonalizationLabel(label) -> Icons.Filled.Palette
         "busc" in l || "search" in l -> Icons.Filled.Search
         "inicio" in l || "home" in l -> Icons.Filled.Home
         "ajust" in l || "config" in l || "setting" in l -> Icons.Filled.Settings
@@ -518,18 +567,10 @@ private fun NavigationIcon(label: String, tint: Color, modifier: Modifier = Modi
     Icon(iconForLabel(label) ?: Icons.Filled.Widgets, contentDescription = null, modifier = modifier, tint = tint)
 }
 
-private fun isSettingsLabel(label: String): Boolean =
-    label.contains("ajust", ignoreCase = true) ||
-        label.contains("config", ignoreCase = true) ||
-        label.contains("setting", ignoreCase = true)
-
-private fun isSearchLabel(label: String): Boolean =
-    label.contains("busc", ignoreCase = true) || label.contains("search", ignoreCase = true)
-
 private fun topBarShowsSettings(cfg: TopBarConfig): Boolean = when (cfg.style) {
     TopBarStyle.MINIMAL -> false
     TopBarStyle.ICONS -> cfg.tabs.orEmpty().split(',').any(::isSettingsLabel)
-    else -> cfg.showSettings && cfg.tabs.orEmpty().split(',').none(::isSettingsLabel)
+    else -> cfg.showSettings
 }
 
 @Composable
@@ -551,7 +592,7 @@ private fun GlyphButton(label: String, color: Color, interactive: Boolean, onCli
     Tile(
         interactive,
         onClick,
-        Modifier,
+        Modifier.semantics { contentDescription = label },
         CircleShape,
         Color.Transparent,
         color,
@@ -566,23 +607,20 @@ private fun GlyphButton(label: String, color: Color, interactive: Boolean, onCli
 }
 
 @Composable
-private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean) {
+private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, onOpenPersonalization: (() -> Unit)? = null, onOpenSystemSettingsFallback: (() -> Unit)? = null) {
     val palette = LocalLauncherStyle.current.palette
     val text = cfg.textColor?.let { Color(it) } ?: palette.onBackground
     val muted = text.copy(alpha = 0.65f)
-    val tabs = cfg.tabs.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
     var current by remember { mutableIntStateOf(0) }
     val bg = cfg.bgColor?.let { Color(it).copy(alpha = (cfg.bgAlpha ?: 100) / 100f) } ?: Color.Transparent
-    val renderedTabs = tabs.filterNot { label ->
-        (label.let(::isSettingsLabel) && cfg.showSettings) || (label.let(::isSearchLabel) && cfg.showSearch)
-    }
+    val renderedTabs = getRenderedTopBarTabs(cfg)
     Row(
         Modifier.fillMaxWidth().background(bg).padding(horizontal = 32.d(), vertical = 14.d()),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.d())
     ) {
         cfg.logo?.takeIf { it.isNotBlank() }?.let { Text(it, fontSize = 22.s(), color = text, fontWeight = FontWeight.Bold) }
-        if (cfg.showSearch && cfg.style !in setOf(TopBarStyle.ICONS, TopBarStyle.MINIMAL) && tabs.none(::isSearchLabel)) GlyphButton("Buscar", text, interactive) { data.onNavClick("Buscar") }
+        if (shouldShowTopBarSearchButton(cfg)) GlyphButton("Buscar", text, interactive) { data.onNavClick("Buscar") }
         if (cfg.align != BlockAlign.START) Spacer(Modifier.weight(1f))
         if (cfg.style != TopBarStyle.MINIMAL) {
             renderedTabs.forEachIndexed { i, label ->
@@ -594,6 +632,8 @@ private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean) {
         if (topBarShowsSettings(cfg)) {
             GlyphButton("Ajustes", text, interactive) { data.onNavClick("Ajustes") }
         }
+        onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", text, interactive, it) }
+        onOpenPersonalization?.let { LauncherPersonalizationButton(it) }
     }
 }
 
@@ -634,7 +674,7 @@ private fun TopTab(
 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
-private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean) {
+private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpenPersonalization: (() -> Unit)? = null, onOpenSystemSettingsFallback: (() -> Unit)? = null) {
     val palette = LocalLauncherStyle.current.palette
     val items = cfg.items.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
     var current by remember { mutableIntStateOf(0) }
@@ -650,7 +690,7 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean) {
         verticalArrangement = Arrangement.spacedBy(6.d()),
         horizontalAlignment = if (cfg.style == RailStyle.ICONS) Alignment.CenterHorizontally else Alignment.Start
     ) {
-        if (cfg.showProfile) {
+        if (shouldShowRailProfileAvatar(cfg)) {
             Box(Modifier.size(36.d()).background(palette.surface, CircleShape), contentAlignment = Alignment.Center) {
                 NavigationIcon("Perfil", text, Modifier.size(22.d()))
             }
@@ -678,6 +718,11 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean) {
                     }
                 }
             }
+            if (i == items.indexOfLast(::isSettingsLabel)) {
+                onOpenPersonalization?.let { LauncherPersonalizationButton(it) }
+            }
         }
+        onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", text, interactive, it) }
+        if (items.none(::isSettingsLabel)) onOpenPersonalization?.let { LauncherPersonalizationButton(it) }
     }
 }
