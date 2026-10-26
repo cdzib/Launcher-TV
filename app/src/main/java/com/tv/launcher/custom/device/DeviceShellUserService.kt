@@ -33,7 +33,12 @@ class DeviceShellUserService : IDeviceShellService.Stub() {
             verifyAnimationScales(AnimationScaleSetting.entries.associate { it.key to SNAPPY_SCALE })
             return results.joinToString("\n") { (key, result) -> "$key=${result.output.trim()}" }
         } catch (exception: Exception) {
-            runCatching { restoreAnimationScales(capturedScales) }
+            val rollback = runCatching { restoreAnimationScales(capturedScales) }
+            rollback.exceptionOrNull()?.let { rollbackFailure ->
+                throw RemoteException(
+                    "PARTIAL_ROLLBACK|${exception.message.orEmpty()}|${rollbackFailure.message.orEmpty()}"
+                )
+            }
             throw exception
         }
     }

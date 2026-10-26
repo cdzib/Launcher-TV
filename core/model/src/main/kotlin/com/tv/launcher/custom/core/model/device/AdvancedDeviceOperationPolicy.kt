@@ -5,6 +5,9 @@ private val packageNamePattern = Regex("[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+
 private val protectedPackages = setOf(
     "android",
     "com.android.settings",
+    "com.android.tv.settings",
+    "com.google.android.tv.settings",
+    "com.amazon.tv.settings.v2",
     "com.android.systemui",
     "com.android.shell",
     "com.android.packageinstaller",
@@ -18,7 +21,9 @@ private val protectedPackages = setOf(
     "com.google.android.gms",
     "com.google.android.gsf",
     "com.google.android.tvlauncher",
-    "com.google.android.apps.tv.launcherx"
+    "com.google.android.apps.tv.launcherx",
+    "com.google.android.leanbacklauncher",
+    "com.amazon.tv.launcher"
 )
 
 enum class AnimationScaleSetting(val key: String) {
@@ -30,10 +35,15 @@ enum class AnimationScaleSetting(val key: String) {
 object AdvancedDeviceOperationPolicy {
     val animationSettings: Set<String> = AnimationScaleSetting.entries.mapTo(linkedSetOf()) { it.key }
 
-    fun canRemovePackageForCurrentUser(packageName: String, launcherPackage: String): Boolean =
+    fun canRemovePackageForCurrentUser(
+        packageName: String,
+        launcherPackage: String,
+        protectedDevicePackages: Set<String> = emptySet()
+    ): Boolean =
         packageNamePattern.matches(packageName) &&
             packageName != launcherPackage &&
-            packageName !in protectedPackages
+            packageName !in protectedPackages &&
+            "*" !in protectedDevicePackages && packageName !in protectedDevicePackages
 
     fun setAnimationScaleArguments(setting: AnimationScaleSetting, value: String): List<String>? {
         if (setting.key !in animationSettings || !value.toFloatOrNull().isFiniteAnimationScale()) return null

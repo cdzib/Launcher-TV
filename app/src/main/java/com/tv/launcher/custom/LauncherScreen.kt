@@ -80,6 +80,8 @@ import kotlinx.coroutines.launch
 import java.io.InputStream
 import kotlinx.collections.immutable.persistentListOf
 
+private const val MAX_BACKGROUND_IMAGE_SIDE = 1920
+
 private data class PendingThemeImport(
     val manifest: ThemeManifest,
     val archiveBytes: ByteArray,
@@ -198,7 +200,13 @@ fun LauncherScreen(
                     runCatching {
                         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBounded(5 * 1024 * 1024) }
                             ?: error("Could not open image")
-                        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: error("Invalid image")
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) error("Invalid image")
+                        val options = BitmapFactory.Options().apply {
+                            inSampleSize = ImageSampling.calculateInSampleSize(bounds.outWidth, bounds.outHeight, MAX_BACKGROUND_IMAGE_SIDE)
+                        }
+                        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: error("Invalid image")
                         val output = ByteArrayOutputStream()
                         bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
                         val filename = "image_${java.util.UUID.randomUUID()}.png"
@@ -285,12 +293,11 @@ fun LauncherScreen(
             val succeeded = runCatching {
                 val imageBytes = activeAppearance.backgroundImageUri?.let { imageUri ->
                     withContext(Dispatchers.IO) {
-                        context.contentResolver.openInputStream(Uri.parse(imageUri))?.use { input ->
-                            val bitmap = BitmapFactory.decodeStream(input) ?: error("Invalid background image")
-                            ByteArrayOutputStream().use { output ->
-                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-                                output.toByteArray()
-                            }
+                        val bitmap = decodeSampledBitmap(context.contentResolver, Uri.parse(imageUri), MAX_BACKGROUND_IMAGE_SIDE)
+                            ?: error("Invalid background image")
+                        ByteArrayOutputStream().use { output ->
+                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                            output.toByteArray()
                         }
                     }
                 }
@@ -342,7 +349,10 @@ fun LauncherScreen(
     val appearanceImage = appearance?.backgroundImageUri
     val backgroundBitmap by androidx.compose.runtime.produceState<ImageBitmap?>(null, appearanceImage) {
         value = if (appearanceImage == null) null else withContext(Dispatchers.IO) {
-            context.contentResolver.openInputStream(Uri.parse(appearanceImage))?.use(BitmapFactory::decodeStream)?.asImageBitmap()
+            runCatching {
+                decodeSampledBitmap(context.contentResolver, Uri.parse(appearanceImage), MAX_BACKGROUND_IMAGE_SIDE)
+                    ?.asImageBitmap()
+            }.getOrNull()
         }
     }
     LauncherTheme(appearance ?: LauncherAppearance(state.themeId)) {
@@ -577,12 +587,11 @@ fun LauncherScreen(
                                     }
                                 } else themeAppearance.backgroundImageUri?.let { imageUri ->
                                     withContext(Dispatchers.IO) {
-                                        context.contentResolver.openInputStream(Uri.parse(imageUri))?.use { input ->
-                                            val bitmap = BitmapFactory.decodeStream(input) ?: error("Invalid background image")
-                                            ByteArrayOutputStream().use { output ->
-                                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
-                                                output.toByteArray()
-                                            }
+                                        val bitmap = decodeSampledBitmap(context.contentResolver, Uri.parse(imageUri), MAX_BACKGROUND_IMAGE_SIDE)
+                                            ?: error("Invalid background image")
+                                        ByteArrayOutputStream().use { output ->
+                                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                                            output.toByteArray()
                                         }
                                     }
                                 }
@@ -778,7 +787,7 @@ private fun AppDrawerScreen(
                     Button(onClick = onBack) { Text("‹") }
                     Text(stringResource(R.string.launcher_all_apps), fontSize = 28.sp)
                 }
-                Button(onClick = onOpenSystemSettings) { Text(stringResource(R.string.system_settings)) }
+                //Button(onClick = onOpenSystemSettings) { Text(stringResource(R.string.system_settings)) }
             }
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(150.dp),

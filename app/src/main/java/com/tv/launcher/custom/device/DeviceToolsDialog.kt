@@ -51,6 +51,11 @@ private const val ANIMATION_SNAPSHOT_KEY = "animation_scales_snapshot"
 private const val REMOVED_SYSTEM_PACKAGES_KEY = "removed_system_packages"
 private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
+private data class PendingDeviceOperation(
+    val message: String,
+    val action: () -> Unit
+)
+
 @Composable
 fun DeviceToolsDialog(
     apps: List<AppEntry>,
@@ -59,6 +64,7 @@ fun DeviceToolsDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val gateway = remember { ShizukuDeviceGateway() }
+    val protectedDevicePackages = remember(context) { getProtectedDevicePackages(context) }
     val preferences = remember(context) {
         context.getSharedPreferences("advanced_device_tools", Context.MODE_PRIVATE)
     }
@@ -73,6 +79,7 @@ fun DeviceToolsDialog(
         mutableStateOf(preferences.getStringSet(REMOVED_SYSTEM_PACKAGES_KEY, emptySet()).orEmpty())
     }
     var selectedApp by remember { mutableStateOf<AppEntry?>(null) }
+    var pendingDeviceOperation by remember { mutableStateOf<PendingDeviceOperation?>(null) }
     var isWorking by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
 
@@ -124,30 +131,34 @@ fun DeviceToolsDialog(
                 }
             },
             onApplyAnimations = {
-                if (!shizukuAvailable || !shizukuAuthorized) {
-                    statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
-                } else {
-                    scope.launch {
-                        isWorking = true
-                        statusMessage = null
-                        runCatching {
-                            if (!preferences.contains(ANIMATION_SNAPSHOT_KEY)) {
-                                val snapshot = gateway.captureAnimationScales()
-                                check(isValidAnimationSnapshot(snapshot)) { "Device returned invalid animation settings" }
-                                check(preferences.edit().putString(ANIMATION_SNAPSHOT_KEY, snapshot).commit()) {
-                                    "Could not save original animation settings"
+                pendingDeviceOperation = PendingDeviceOperation(
+                    context.getString(R.string.device_tools_apply_animation_warning)
+                ) {
+                    if (!shizukuAvailable || !shizukuAuthorized) {
+                        statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
+                    } else {
+                        scope.launch {
+                            isWorking = true
+                            statusMessage = null
+                            runCatching {
+                                if (!preferences.contains(ANIMATION_SNAPSHOT_KEY)) {
+                                    val snapshot = gateway.captureAnimationScales()
+                                    check(isValidAnimationSnapshot(snapshot)) { "Device returned invalid animation settings" }
+                                    check(preferences.edit().putString(ANIMATION_SNAPSHOT_KEY, snapshot).commit()) {
+                                        "Could not save original animation settings"
+                                    }
                                 }
+                                val snapshot = preferences.getString(ANIMATION_SNAPSHOT_KEY, null)
+                                    ?: error("Original animation settings were not saved")
+                                gateway.applySnappyAnimationPreset(snapshot)
+                            }.onSuccess {
+                                hasSavedAnimationScales = true
+                                statusMessage = it.ifBlank { context.getString(R.string.device_tools_apply_animation) }
+                            }.onFailure {
+                                statusMessage = getDeviceOperationFailureMessage(context, it)
                             }
-                            val snapshot = preferences.getString(ANIMATION_SNAPSHOT_KEY, null)
-                                ?: error("Original animation settings were not saved")
-                            gateway.applySnappyAnimationPreset(snapshot)
-                        }.onSuccess {
-                            hasSavedAnimationScales = true
-                            statusMessage = it.ifBlank { "Animation scales set to 0.5" }
-                        }.onFailure {
-                            statusMessage = it.message ?: context.getString(R.string.device_tools_operation_failed)
+                            isWorking = false
                         }
-                        isWorking = false
                     }
                 }
             },
@@ -155,48 +166,69 @@ fun DeviceToolsDialog(
                 val snapshot = preferences.getString(ANIMATION_SNAPSHOT_KEY, null)
                 if (snapshot == null) {
                     hasSavedAnimationScales = false
-                } else if (!shizukuAvailable || !shizukuAuthorized) {
-                    statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
                 } else {
-                    scope.launch {
-                        isWorking = true
-                        statusMessage = null
-                        runCatching { gateway.restoreAnimationScales(snapshot) }
-                            .onSuccess {
-                                preferences.edit().remove(ANIMATION_SNAPSHOT_KEY).commit()
-                                hasSavedAnimationScales = false
-                                statusMessage = context.getString(R.string.device_tools_restore_animation)
+                    pendingDeviceOperation = PendingDeviceOperation(
+                        context.getString(R.string.device_tools_restore_animation_warning)
+                    ) {
+                        if (!shizukuAvailable || !shizukuAuthorized) {
+                            statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
+                        } else {
+                            scope.launch {
+                                isWorking = true
+                                statusMessage = null
+                                runCatching { gateway.restoreAnimationScales(snapshot) }
+                                    .onSuccess {
+                                        preferences.edit().remove(ANIMATION_SNAPSHOT_KEY).commit()
+                                        hasSavedAnimationScales = false
+                                        statusMessage = context.getString(R.string.device_tools_restore_animation)
+                                    }
+                                    .onFailure { statusMessage = it.message ?: context.getString(R.string.device_tools_operation_failed) }
+                                isWorking = false
                             }
-                            .onFailure { statusMessage = it.message ?: context.getString(R.string.device_tools_operation_failed) }
-                        isWorking = false
+                        }
                     }
                 }
             },
             onSelectAppForRemoval = { selectedApp = it },
             onRestoreSystemApp = { packageName ->
-                if (!shizukuAvailable || !shizukuAuthorized) {
-                    statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
-                } else {
-                    scope.launch {
-                        isWorking = true
-                        runCatching { gateway.restorePreinstalledApp(packageName) }
-                            .onSuccess {
-                                removedSystemPackages = removedSystemPackages - packageName
-                                preferences.edit().putStringSet(REMOVED_SYSTEM_PACKAGES_KEY, removedSystemPackages).commit()
-                                statusMessage = it.ifBlank { context.getString(R.string.device_tools_app_restore) }
-                            }
-                            .onFailure { statusMessage = it.message ?: context.getString(R.string.device_tools_operation_failed) }
-                        isWorking = false
+                pendingDeviceOperation = PendingDeviceOperation(
+                    context.getString(R.string.device_tools_restore_app_warning, packageName)
+                ) {
+                    if (!shizukuAvailable || !shizukuAuthorized) {
+                        statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
+                    } else {
+                        scope.launch {
+                            isWorking = true
+                            runCatching { gateway.restorePreinstalledApp(packageName) }
+                                .onSuccess {
+                                    removedSystemPackages = removedSystemPackages - packageName
+                                    preferences.edit().putStringSet(REMOVED_SYSTEM_PACKAGES_KEY, removedSystemPackages).commit()
+                                    statusMessage = it.ifBlank { context.getString(R.string.device_tools_app_restore) }
+                                }
+                                .onFailure { statusMessage = it.message ?: context.getString(R.string.device_tools_operation_failed) }
+                            isWorking = false
+                        }
                     }
                 }
             },
             onCopyAdbInstructions = { packageName ->
-                copyAdbText(context, buildAdbInstructions(packageName))
+                copyAdbText(context, buildAdbInstructions(packageName, protectedDevicePackages, context.packageName))
             },
             onCopyAdbRestoreInstruction = { packageName ->
-                copyAdbText(context, buildAdbRestoreInstruction(packageName))
+                copyAdbText(context, buildAdbRestoreInstruction(packageName, protectedDevicePackages, context.packageName))
             },
             onDismiss = onDismiss
+        )
+    }
+
+    pendingDeviceOperation?.let { pending ->
+        DeviceOperationConfirmationDialog(
+            message = pending.message,
+            onCancel = { pendingDeviceOperation = null },
+            onConfirm = {
+                pendingDeviceOperation = null
+                pending.action()
+            }
         )
     }
 
@@ -207,7 +239,12 @@ fun DeviceToolsDialog(
             onConfirm = {
                 selectedApp = null
                 if (app.isSystemApp) {
-                    if (!shizukuAvailable || !shizukuAuthorized) {
+                    if (!AdvancedDeviceOperationPolicy.canRemovePackageForCurrentUser(
+                            app.packageName, context.packageName, protectedDevicePackages
+                        )
+                    ) {
+                        statusMessage = context.getString(R.string.device_tools_protected_package)
+                    } else if (!shizukuAvailable || !shizukuAuthorized) {
                         statusMessage = context.getString(R.string.device_tools_shizuku_unavailable)
                     } else {
                         scope.launch {
@@ -216,7 +253,7 @@ fun DeviceToolsDialog(
                                 .onSuccess {
                                     removedSystemPackages = removedSystemPackages + app.packageName
                                     preferences.edit().putStringSet(REMOVED_SYSTEM_PACKAGES_KEY, removedSystemPackages).commit()
-                                    statusMessage = it.ifBlank { "${app.label} removed for this user" }
+                                    statusMessage = it.ifBlank { context.getString(R.string.device_tools_app_remove_system) }
                                 }
                                 .onFailure { statusMessage = it.message ?: context.getString(R.string.device_tools_operation_failed) }
                             isWorking = false
@@ -231,7 +268,12 @@ fun DeviceToolsDialog(
             onCopyAdb = if (app.isSystemApp) {
                 {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("ADB", buildAdbInstructions(app.packageName)))
+                    clipboard.setPrimaryClip(
+                        ClipData.newPlainText(
+                            context.getString(R.string.device_tools_title),
+                            buildAdbInstructions(app.packageName, protectedDevicePackages, context.packageName)
+                        )
+                    )
                     Toast.makeText(context, R.string.device_tools_adb_copied, Toast.LENGTH_SHORT).show()
                 }
             } else null
@@ -324,6 +366,26 @@ private fun DeviceToolsPanel(
 }
 
 @Composable
+private fun DeviceOperationConfirmationDialog(
+    message: String,
+    onCancel: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = onCancel) {
+        Surface(Modifier.width(560.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp)) {
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(stringResource(R.string.device_tools_confirm_operation), fontSize = 22.sp)
+                Text(message)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onConfirm) { Text(stringResource(R.string.device_tools_confirm_remove)) }
+                    Button(onClick = onCancel) { Text(stringResource(R.string.device_tools_cancel)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun DeviceToolsConfirmationDialog(
     app: AppEntry,
     onCancel: () -> Unit,
@@ -362,7 +424,11 @@ private fun isValidAnimationSnapshot(snapshot: String): Boolean {
     }
 }
 
-private fun buildAdbInstructions(packageName: String?): String = buildString {
+private fun buildAdbInstructions(
+    packageName: String?,
+    protectedDevicePackages: Set<String>,
+    launcherPackage: String
+): String = buildString {
     appendLine("# Read and save current values before changing them")
     listOf("window_animation_scale", "transition_animation_scale", "animator_duration_scale").forEach { key ->
         appendLine("adb shell settings get global $key")
@@ -371,14 +437,46 @@ private fun buildAdbInstructions(packageName: String?): String = buildString {
     appendLine("adb shell settings put global transition_animation_scale 0.5")
     appendLine("adb shell settings put global animator_duration_scale 0.5")
     appendLine("# Restore each key separately with its value recorded above")
-    if (packageName != null && AdvancedDeviceOperationPolicy.canRemovePackageForCurrentUser(packageName, "com.tv.launcher.custom")) {
+    if (packageName != null && AdvancedDeviceOperationPolicy.canRemovePackageForCurrentUser(
+            packageName, launcherPackage, protectedDevicePackages
+        )
+    ) {
         appendLine("adb shell pm uninstall --user current $packageName")
         appendLine("# Restore is a separate action; do not paste it together with this command")
     }
 }
 
-private fun buildAdbRestoreInstruction(packageName: String): String =
-    "adb shell cmd package install-existing --user current $packageName"
+private fun buildAdbRestoreInstruction(
+    packageName: String,
+    protectedDevicePackages: Set<String>,
+    launcherPackage: String
+): String =
+    if (AdvancedDeviceOperationPolicy.canRemovePackageForCurrentUser(packageName, launcherPackage, protectedDevicePackages)) {
+        "adb shell cmd package install-existing --user current $packageName"
+    } else {
+        "# Package is protected; no restore command generated"
+    }
+
+private fun getProtectedDevicePackages(context: Context): Set<String> = runCatching {
+    val packageManager = context.packageManager
+    val flags = android.content.pm.PackageManager.MATCH_DEFAULT_ONLY
+    val homePackage = packageManager.resolveActivity(
+        Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), flags
+    )?.activityInfo?.packageName ?: return@runCatching setOf("*")
+    val settingsPackage = packageManager.resolveActivity(Intent(android.provider.Settings.ACTION_SETTINGS), flags)
+        ?.activityInfo?.packageName
+    setOfNotNull(homePackage, settingsPackage)
+}.getOrDefault(setOf("*"))
+
+private fun getDeviceOperationFailureMessage(context: Context, exception: Throwable): String {
+    val message = exception.message.orEmpty()
+    val partialRollback = message.split('|', limit = 3)
+    return if (partialRollback.size == 3 && partialRollback[0] == "PARTIAL_ROLLBACK") {
+        context.getString(R.string.device_tools_partial_rollback, partialRollback[1], partialRollback[2])
+    } else {
+        message.ifBlank { context.getString(R.string.device_tools_operation_failed) }
+    }
+}
 
 private fun copyAdbText(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

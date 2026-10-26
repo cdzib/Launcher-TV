@@ -33,12 +33,11 @@ fun ThemeAssetImage(
                     BitmapFactory.decodeStream(it, null, bounds)
                 }
                 if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
-                var sampleSize = 1
-                while (bounds.outWidth / sampleSize > MAX_THEME_IMAGE_SIZE_PX ||
-                    bounds.outHeight / sampleSize > MAX_THEME_IMAGE_SIZE_PX
-                ) {
-                    sampleSize *= 2
-                }
+                val sampleSize = ImageSampling.calculateInSampleSize(
+                    bounds.outWidth,
+                    bounds.outHeight,
+                    MAX_THEME_IMAGE_SIZE_PX
+                )
                 val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
                 context.contentResolver.openInputStream(parsedUri)?.use { input ->
                     BitmapFactory.decodeStream(input, null, options)?.asImageBitmap()

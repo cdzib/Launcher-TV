@@ -17,7 +17,7 @@
     <string name="device_tools_app_remove">Desinstalar</string>
     <string name="device_tools_app_remove_system">Quitar para este usuario</string>
     <string name="device_tools_app_restore">Restaurar app del sistema</string>
-    <string name="device_tools_system_app_warning">La app preinstalada se quitará solo para este usuario. No se borra del firmware. Su configuración puede perderse; la restauración depende del fabricante.</string>
+    <string name="device_tools_system_app_warning">Shizuku quitará esta app preinstalada solo para este usuario; no se borra del firmware. Sus datos pueden perderse. Podrás intentar restaurarla con Shizuku si el fabricante lo permite.</string>
     <string name="device_tools_user_app_warning">Android abrirá su confirmación oficial. Desinstalar puede borrar los datos de la app.</string>
     <string name="device_tools_confirm_remove">Confirmar desinstalación</string>
     <string name="device_tools_cancel">Cancelar</string>
@@ -27,6 +27,13 @@
     <string name="device_tools_adb_copied">Instrucciones copiadas</string>
     <string name="device_tools_working">Aplicando…</string>
     <string name="device_tools_operation_failed">No se pudo completar la operación</string>
+    <string name="device_tools_protected_package">Esta aplicación está protegida y no se puede retirar.</string>
+    <string name="device_tools_shizuku_remove_warning">Shizuku retirará %1$s solo para este usuario. El APK del sistema se conservará; podrás intentar restaurarla después.</string>
+    <string name="device_tools_apply_animation_warning">Shizuku cambiará las tres escalas de animación a 0.5×. Se guardaron los valores anteriores para intentar restaurarlos.</string>
+    <string name="device_tools_restore_animation_warning">Shizuku restaurará las escalas de animación guardadas.</string>
+    <string name="device_tools_restore_app_warning">Shizuku intentará restaurar %1$s para este usuario. El fabricante puede impedirlo.</string>
+    <string name="device_tools_confirm_operation">Confirmar operación</string>
+    <string name="device_tools_partial_rollback">No se pudo aplicar el ajuste (%1$s) y también falló la restauración (%2$s). Algunas escalas pueden haber cambiado.</string>
     <string name="weather_settings_title">Clima</string>
     <string name="weather_settings_description">Elige una ciudad para mostrar su clima. No se usa GPS y la ubicación se guarda solo en este dispositivo.</string>
     <string name="weather_city_search">Buscar ciudad</string>

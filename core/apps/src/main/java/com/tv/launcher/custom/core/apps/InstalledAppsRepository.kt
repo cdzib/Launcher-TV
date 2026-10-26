@@ -69,7 +69,8 @@ class InstalledAppsRepository @Inject constructor(
                 AppEntry(
                     packageName = applicationInfo.packageName,
                     label = resolveInfo.loadLabel(pm).toString(),
-                    isSystemApp = applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
+                    isSystemApp = applicationInfo.flags and
+                        (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0
                 )
             }
             .distinctBy { it.packageName }
