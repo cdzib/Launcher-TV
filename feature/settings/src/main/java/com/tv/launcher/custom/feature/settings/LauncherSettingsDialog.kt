@@ -245,7 +245,10 @@ private fun LauncherSettingsContent(
                                     items(installedThemes, key = { it.id }) { theme ->
                                         SettingsThemeTile(
                                             theme, theme.id == appearance.installedThemeId, theme.id == previewTheme?.id,
-                                            apps, safePreviewData, onClick = { selectedThemeId = theme.id }
+                                             apps, safePreviewData, onClick = {
+                                                 selectedThemeId = theme.id
+                                                 if (theme.id != appearance.installedThemeId) onApplyInstalledTheme(theme.id)
+                                             }
                                         )
                                     }
                                     item(key = "create") {

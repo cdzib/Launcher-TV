@@ -3,6 +3,8 @@ package com.tv.launcher.custom.core.theme.layout
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -48,6 +50,8 @@ import kotlinx.collections.immutable.ImmutableList
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
+    val sectionContent = LocalLauncherSectionContent.current
+    val openHome = LocalOpenHome.current
     val openApps = LocalOpenApps.current
     val openSearch = LocalOpenSearch.current
     val imageVisible = LocalBackgroundImageVisible.current
@@ -55,26 +59,32 @@ fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester,
     BoxWithConstraints(modifier.fillMaxSize().then(if (imageVisible) Modifier else Modifier.background(palette.background))) {
         val heroHeight = maxHeight * 0.70f
         val posterHeight = maxHeight * 0.19f
-        InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().height(heroHeight).padding(start = 220.dp, end = 16.dp, top = 16.dp))
+        if (sectionContent == null) InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().height(heroHeight).padding(start = 220.dp, end = 16.dp, top = 16.dp))
         Row(Modifier.fillMaxSize().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(
-                Modifier.width(184.dp).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(Color(0xE62A211C)).padding(12.dp),
+                Modifier.width(184.dp).fillMaxHeight().clip(RoundedCornerShape(20.dp)).background(Color(0xE62A211C)).padding(12.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text("TV", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 ClockText(14.sp)
-                ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.fillMaxWidth().height(44.dp))
-                ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.fillMaxWidth().height(44.dp).focusRequester(firstItemFocus), selected = true)
-                ReferenceAction(stringResource(R.string.launcher_settings), onOpenSettings, Modifier.fillMaxWidth().height(44.dp))
-                LauncherPersonalizationButton(onOpenPersonalization)
+                ReferenceAction(stringResource(R.string.studio_home), openHome, Modifier.fillMaxWidth().height(44.dp), selected = LocalLauncherSection.current == LauncherSection.HOME)
+                ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.fillMaxWidth().height(44.dp), selected = LocalLauncherSection.current == LauncherSection.SEARCH)
+                ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.fillMaxWidth().height(44.dp).then(if (sectionContent == null) Modifier.focusRequester(firstItemFocus) else Modifier), selected = LocalLauncherSection.current == LauncherSection.APPS)
+                ReferenceAction(stringResource(R.string.system_settings), onOpenSettings, Modifier.fillMaxWidth().height(44.dp))
+                ReferenceAction(stringResource(R.string.launcher_personalization), onOpenPersonalization, Modifier.fillMaxWidth().height(44.dp))
                 Text(stringResource(R.string.your_apps), fontSize = 13.sp, color = Color(0xFFC7BDB5))
                 apps.take(3).forEach { app ->
                     ReferenceAction(app.label, { onLaunch(app.packageName) }, Modifier.fillMaxWidth().height(44.dp))
                 }
             }
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Bottom) {
+                if (sectionContent != null) {
+                    sectionContent()
+                } else {
                 Text(stringResource(R.string.your_apps), fontSize = 13.sp, color = Color.White, modifier = Modifier.padding(bottom = 8.dp))
                 InstalledAppCards(apps, onLaunch, posterHeight)
+                }
             }
         }
     }
@@ -83,6 +93,7 @@ fun AppleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester,
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
+    val sectionContent = LocalLauncherSectionContent.current
     val openApps = LocalOpenApps.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
@@ -91,11 +102,15 @@ fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequeste
         val posterHeight = maxHeight * 0.23f
         Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ReferenceHeader("Android TV", firstItemFocus, openApps, onOpenSettings, onOpenPersonalization)
+            if (sectionContent != null) {
+                Box(Modifier.fillMaxWidth().weight(1f)) { sectionContent() }
+            } else {
             InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().weight(1f))
             Text(stringResource(R.string.your_apps), color = Color.White, fontSize = 14.sp)
             ReferenceApps(apps, onLaunch, 112.dp, appHeight)
             Text(stringResource(R.string.apps_for_you), color = Color(0xFFB7C2D2), fontSize = 13.sp)
             InstalledAppCards(apps, onLaunch, posterHeight)
+            }
         }
     }
 }
@@ -103,6 +118,7 @@ fun AndroidTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequeste
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
+    val sectionContent = LocalLauncherSectionContent.current
     val openApps = LocalOpenApps.current
     val imageVisible = LocalBackgroundImageVisible.current
     val palette = LocalLauncherStyle.current.palette
@@ -111,11 +127,15 @@ fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
         val appHeight = (maxHeight * 0.11f).coerceAtLeast(48.dp)
         Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ReferenceHeader("Google TV", firstItemFocus, openApps, onOpenSettings, onOpenPersonalization)
+            if (sectionContent != null) {
+                Box(Modifier.fillMaxWidth().weight(1f)) { sectionContent() }
+            } else {
             InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().weight(1f))
             Text(stringResource(R.string.apps_for_you), color = Color.White, fontSize = 13.sp)
             InstalledAppCards(apps, onLaunch, posterHeight)
             Text(stringResource(R.string.your_apps), color = Color.White, fontSize = 14.sp)
             ReferenceApps(apps, onLaunch, 104.dp, appHeight)
+            }
         }
     }
 }
@@ -123,6 +143,8 @@ fun GoogleTvLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
+    val sectionContent = LocalLauncherSectionContent.current
+    val openHome = LocalOpenHome.current
     val openApps = LocalOpenApps.current
     val openSearch = LocalOpenSearch.current
     val imageVisible = LocalBackgroundImageVisible.current
@@ -131,18 +153,23 @@ fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, 
         val bannerHeight = maxHeight * 0.40f
         val posterHeight = maxHeight * 0.17f
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().height(bannerHeight))
+            if (sectionContent == null) InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().height(bannerHeight))
             Row(Modifier.fillMaxWidth().padding(horizontal = 32.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                ReferenceAction("", openSearch, Modifier.size(44.dp).focusRequester(firstItemFocus), description = stringResource(R.string.search_apps), icon = Icons.Outlined.Search)
-                ReferenceAction("", openApps, Modifier.size(44.dp), selected = true, description = stringResource(R.string.launcher_apps), icon = Icons.Outlined.Apps)
-                Box(Modifier.weight(1f)) { ReferenceApps(apps, onLaunch, 80.dp, 48.dp) }
-                ReferenceAction("", onOpenSettings, Modifier.size(44.dp), description = stringResource(R.string.launcher_settings), icon = Icons.Outlined.Settings)
+                ReferenceAction(stringResource(R.string.studio_home), openHome, Modifier.height(44.dp), selected = LocalLauncherSection.current == LauncherSection.HOME)
+                ReferenceAction("", openSearch, Modifier.size(44.dp).then(if (sectionContent == null) Modifier.focusRequester(firstItemFocus) else Modifier), description = stringResource(R.string.search_apps), icon = Icons.Outlined.Search)
+                ReferenceAction("", openApps, Modifier.size(44.dp), selected = LocalLauncherSection.current == LauncherSection.APPS, description = stringResource(R.string.launcher_apps), icon = Icons.Outlined.Apps)
+                Box(Modifier.weight(1f)) { if (sectionContent == null) ReferenceApps(apps, onLaunch, 80.dp, 48.dp) }
+                ReferenceAction("", onOpenSettings, Modifier.size(44.dp), description = stringResource(R.string.system_settings), icon = Icons.Outlined.Settings)
                 LauncherPersonalizationButton(onOpenPersonalization)
             }
+            if (sectionContent != null) {
+                Box(Modifier.fillMaxWidth().weight(1f).padding(horizontal = 16.dp)) { sectionContent() }
+            } else {
             Text(stringResource(R.string.your_apps), Modifier.padding(horizontal = 32.dp), color = Color(0xFFCCCCCC), fontSize = 13.sp)
             Column(Modifier.padding(horizontal = 32.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 InstalledAppCards(apps.take((apps.size + 1) / 2), onLaunch, posterHeight)
                 InstalledAppCards(apps.drop((apps.size + 1) / 2), onLaunch, posterHeight)
+            }
             }
         }
     }
@@ -151,6 +178,8 @@ fun TopNavLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, 
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester, onLaunch: (String) -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier, onOpenPersonalization: () -> Unit = onOpenSettings) {
+    val sectionContent = LocalLauncherSectionContent.current
+    val openHome = LocalOpenHome.current
     val openApps = LocalOpenApps.current
     val openSearch = LocalOpenSearch.current
     val imageVisible = LocalBackgroundImageVisible.current
@@ -160,17 +189,20 @@ fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
             Column(Modifier.fillMaxWidth(0.34f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Roku", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.height(24.dp))
-                ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.fillMaxWidth().height(44.dp), selected = true, square = true)
-                ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.fillMaxWidth().height(44.dp), square = true)
-                ReferenceAction(stringResource(R.string.launcher_settings), onOpenSettings, Modifier.fillMaxWidth().height(44.dp), square = true)
-                LauncherPersonalizationButton(onOpenPersonalization)
+                ReferenceAction(stringResource(R.string.studio_home), openHome, Modifier.fillMaxWidth().height(44.dp), selected = LocalLauncherSection.current == LauncherSection.HOME, square = true)
+                ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.fillMaxWidth().height(44.dp), selected = LocalLauncherSection.current == LauncherSection.APPS, square = true)
+                ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.fillMaxWidth().height(44.dp), selected = LocalLauncherSection.current == LauncherSection.SEARCH, square = true)
+                ReferenceAction(stringResource(R.string.system_settings), onOpenSettings, Modifier.fillMaxWidth().height(44.dp), square = true)
+                ReferenceAction(stringResource(R.string.launcher_personalization), onOpenPersonalization, Modifier.fillMaxWidth().height(44.dp), square = true)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
                     ClockText(16.sp)
                     Text(stringResource(R.string.installed_apps_count, apps.size), Modifier.padding(start = 16.dp), fontSize = 13.sp, color = Color(0xFFE0D2ED))
                 }
-                LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(8.dp)) {
+                if (sectionContent != null) {
+                    Box(Modifier.fillMaxWidth().weight(1f)) { sectionContent() }
+                } else LazyVerticalGrid(columns = GridCells.Fixed(3), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(8.dp)) {
                     itemsIndexed(apps, key = { _, app -> app.packageName }) { index, app ->
                         ReferenceAppCard(app, onLaunch, Modifier.fillMaxWidth().aspectRatio(1.3f).then(if (index == 0) Modifier.focusRequester(firstItemFocus) else Modifier), square = true)
                     }
@@ -183,12 +215,14 @@ fun SideGridLayout(apps: ImmutableList<AppEntry>, firstItemFocus: FocusRequester
 @Composable
 private fun ReferenceHeader(title: String, focus: FocusRequester, openApps: () -> Unit, openSettings: () -> Unit, onOpenPersonalization: () -> Unit) {
     val openSearch = LocalOpenSearch.current
+    val openHome = LocalOpenHome.current
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, fontSize = 18.sp, color = Color.White)
-        ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.height(44.dp).focusRequester(focus))
-        ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.height(44.dp), selected = true)
+        ReferenceAction(stringResource(R.string.studio_home), openHome, Modifier.height(44.dp), selected = LocalLauncherSection.current == LauncherSection.HOME)
+        ReferenceAction(stringResource(R.string.search_apps), openSearch, Modifier.height(44.dp).then(if (LocalLauncherSectionContent.current == null) Modifier.focusRequester(focus) else Modifier), selected = LocalLauncherSection.current == LauncherSection.SEARCH)
+        ReferenceAction(stringResource(R.string.launcher_apps), openApps, Modifier.height(44.dp), selected = LocalLauncherSection.current == LauncherSection.APPS)
         Spacer(Modifier.weight(1f))
-        ReferenceAction("", openSettings, Modifier.size(44.dp), description = stringResource(R.string.launcher_settings), icon = Icons.Outlined.Settings)
+        ReferenceAction("", openSettings, Modifier.size(44.dp), description = stringResource(R.string.system_settings), icon = Icons.Outlined.Settings)
         LauncherPersonalizationButton(onOpenPersonalization)
         ClockText(16.sp)
     }
@@ -200,9 +234,9 @@ private fun ReferenceAction(label: String, onClick: () -> Unit, modifier: Modifi
     val shape = RoundedCornerShape(if (square) 2.dp else 24.dp)
     Surface(
         onClick = onClick,
-        modifier = modifier.semantics { contentDescription = description },
+        modifier = modifier.selectLauncherSectionOnFocus(description, onClick).semantics { contentDescription = description },
         shape = ClickableSurfaceDefaults.shape(shape),
-        colors = ClickableSurfaceDefaults.colors(containerColor = if (selected) palette.accent else Color.Transparent, contentColor = if (selected) palette.onBackground else palette.onBackground),
+        colors = ClickableSurfaceDefaults.colors(containerColor = if (selected) palette.accent else Color.Transparent, contentColor = if (selected) palette.background else palette.onBackground),
         border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f)
     ) {
@@ -211,7 +245,7 @@ private fun ReferenceAction(label: String, onClick: () -> Unit, modifier: Modifi
             contentAlignment = if (icon != null) Alignment.Center else Alignment.CenterStart
         ) {
             if (icon != null) Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = androidx.tv.material3.LocalContentColor.current)
-            else Text(label, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            else Text(label, color = if (selected) palette.background else palette.onBackground, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }
@@ -261,3 +295,21 @@ private fun FireReferencePreview() = LauncherLayoutPreview(ThemeId.FIRE_TV) { ap
 @Preview(name = "Roku", device = "spec:width=960dp,height=540dp,dpi=160")
 @Composable
 private fun RokuReferencePreview() = LauncherLayoutPreview(ThemeId.ROKU) { apps, focus -> SideGridLayout(apps, focus, {}, {}) }
+
+@Preview(name = "Roku · Contenido de sección", device = "spec:width=960dp,height=540dp,dpi=160")
+@Composable
+private fun RokuSectionPreview() = LauncherLayoutPreview(ThemeId.ROKU) { apps, focus ->
+    CompositionLocalProvider(
+        LocalLauncherSection provides LauncherSection.APPS,
+        LocalLauncherSectionContent provides { Text("Todas las apps") }
+    ) { SideGridLayout(apps, focus, {}, {}) }
+}
+
+@Preview(name = "Apple TV · Contenido de sección", device = "spec:width=960dp,height=540dp,dpi=160")
+@Composable
+private fun AppleSectionPreview() = LauncherLayoutPreview(ThemeId.APPLE_TV) { apps, focus ->
+    CompositionLocalProvider(
+        LocalLauncherSection provides LauncherSection.SEARCH,
+        LocalLauncherSectionContent provides { Text("Buscar") }
+    ) { AppleTvLayout(apps, focus, {}, {}) }
+}

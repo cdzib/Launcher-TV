@@ -16,7 +16,8 @@ class InstalledAppsCanvasData(
     private val assetUris: Map<String, String> = emptyMap(),
     private val onOpenSystemSettings: () -> Unit = {},
     private val onOpenPersonalization: () -> Unit = onOpenSettings,
-    private val onOpenSearch: () -> Unit = onOpenApps
+    private val onOpenSearch: () -> Unit = onOpenApps,
+    private val onOpenHome: () -> Unit = {}
 ) : CanvasData {
     private fun appsFor(block: ThemeBlock): List<AppEntry> = when (block.type) {
         ThemeBlockType.FAVORITES_ROW -> favorites
@@ -65,10 +66,12 @@ class InstalledAppsCanvasData(
         when {
             isPersonalizationLabel(label) -> onOpenPersonalization()
             label.contains("ajust", true) || label.contains("config", true) || label.contains("setting", true) -> onOpenSystemSettings()
-            label.contains("apps", true) || label.contains("aplic", true) -> onOpenApps()
-            label.contains("busc", true) || label.contains("search", true) -> onOpenSearch()
-            label.contains("inicio", true) || label.contains("home", true) -> Unit
-            else -> onUnavailableNavigation(label)
+            else -> when (resolveLauncherSection(label)) {
+                LauncherSection.APPS -> onOpenApps()
+                LauncherSection.SEARCH -> onOpenSearch()
+                LauncherSection.HOME -> onOpenHome()
+                null -> onUnavailableNavigation(label)
+            }
         }
     }
     override fun onSystemSettingsClick() = onOpenSystemSettings()
@@ -84,7 +87,8 @@ class InstalledAppsCanvasData(
         assetUris = assetUris,
         onOpenSystemSettings = onOpenSystemSettings,
         onOpenPersonalization = onOpenPersonalization,
-        onOpenSearch = onOpenSearch
+        onOpenSearch = onOpenSearch,
+        onOpenHome = onOpenHome
     )
 
     private fun mediaItemsFor(block: ThemeBlock) = block.contentItems

@@ -52,6 +52,12 @@ import com.tv.launcher.custom.core.model.theme.ThemeId
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.components.AppIcon
 import com.tv.launcher.custom.core.ui.components.ClockText
+import com.tv.launcher.custom.core.ui.components.LocalLauncherSectionContent
+import com.tv.launcher.custom.core.ui.components.LocalOpenHome
+import com.tv.launcher.custom.core.ui.components.LocalOpenApps
+import com.tv.launcher.custom.core.ui.components.LocalOpenSearch
+import com.tv.launcher.custom.core.ui.components.selectLauncherSectionOnFocus
+import androidx.tv.material3.Button
 import com.tv.launcher.custom.core.ui.components.touchClick
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
@@ -75,6 +81,10 @@ fun FreeMyTvLayout(
     modifier: Modifier = Modifier
 ) {
     val style = LocalLauncherStyle.current
+    val sectionContent = LocalLauncherSectionContent.current
+    val openHome = LocalOpenHome.current
+    val openApps = LocalOpenApps.current
+    val openSearch = LocalOpenSearch.current
     val hasBackgroundImage = LocalBackgroundImageVisible.current
     val date = rememberLocalDate()
     val customizeDescription = "${stringResource(R.string.free_my_tv_customize)} ${stringResource(R.string.launcher_settings)}"
@@ -138,7 +148,15 @@ fun FreeMyTvLayout(
                 Spacer(Modifier.width(12.dp))
                 ClockText(fontSize = 24.sp, modifier = Modifier.semantics { contentDescription = "Hora actual" })
             }
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Button(onClick = openHome, modifier = Modifier.selectLauncherSectionOnFocus("Home", openHome)) { Text(stringResource(R.string.studio_home)) }
+                Button(onClick = openSearch, modifier = Modifier.selectLauncherSectionOnFocus("Search", openSearch)) { Text(stringResource(R.string.search_apps)) }
+                Button(onClick = openApps, modifier = Modifier.selectLauncherSectionOnFocus("Apps", openApps)) { Text(stringResource(R.string.launcher_apps)) }
+            }
 
+            if (sectionContent != null) {
+                Box(Modifier.fillMaxWidth().weight(1f)) { sectionContent() }
+            } else {
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.CenterStart) {
                 if (featuredApp != null) {
                     Surface(
@@ -218,6 +236,7 @@ fun FreeMyTvLayout(
                         )
                     }
                 }
+            }
             }
         }
     }

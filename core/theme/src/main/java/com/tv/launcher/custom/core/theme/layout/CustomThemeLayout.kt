@@ -52,7 +52,8 @@ fun CustomThemeLayout(
         transparentBackground = true,
         firstItemFocusRequester = firstItemFocusRequester,
         onOpenPersonalization = onOpenPersonalization.takeUnless { hasPersonalizationAction(composition) },
-        onOpenSystemSettingsFallback = onOpenSettings.takeUnless { hasSystemSettingsAction }
+        onOpenSystemSettingsFallback = onOpenSettings.takeUnless { hasSystemSettingsAction },
+        sectionContent = com.tv.launcher.custom.core.ui.components.LocalLauncherSectionContent.current
     )
 }
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -36,7 +37,7 @@ import android.content.pm.PackageManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.CompositionLocalProvider
-import com.tv.launcher.custom.feature.search.AppSearchDialog
+import com.tv.launcher.custom.feature.search.AppSearchScreen
 import com.tv.launcher.custom.feature.remote.RemoteThemeCatalogDialog
 import com.tv.launcher.custom.feature.editor.ThemeCompositionEditorDialog
 import com.tv.launcher.custom.feature.home.presentation.HomeContent
@@ -50,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -162,8 +164,8 @@ fun LauncherScreen(
     var showLauncherSettings by remember { mutableStateOf(false) }
     var showDeviceTools by remember { mutableStateOf(false) }
     var showWeatherSettings by remember { mutableStateOf(false) }
-    var showApps by remember { mutableStateOf(false) }
-    var showSearch by remember { mutableStateOf(false) }
+    var section by rememberSaveable { mutableStateOf(LauncherSection.HOME) }
+    val sectionStateHolder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     var pendingTheme by remember { mutableStateOf<PendingThemeImport?>(null) }
     var showBundledThemePicker by remember { mutableStateOf(false) }
     var showRemoteThemes by remember { mutableStateOf(false) }
@@ -192,7 +194,7 @@ fun LauncherScreen(
     var editorAssetUris by remember { mutableStateOf(emptyMap<String, String>()) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    BackHandler(enabled = showApps) { showApps = false }
+    BackHandler(enabled = section != LauncherSection.HOME) { section = section.onBack() }
     val editorAssetsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) coroutineScope.launch {
             val importedAssets = withContext(Dispatchers.IO) {
@@ -235,10 +237,10 @@ fun LauncherScreen(
             apps = apps,
             favorites = apps.filter { it.packageName in favoritePackages },
             onLaunch = { packageName -> onIntent(HomeIntent.Launch(packageName)) },
-            onOpenApps = { showApps = true },
+            onOpenApps = { section = LauncherSection.APPS },
             onOpenSettings = { openSystemSettings(context) },
             onOpenPersonalization = { showLauncherSettings = true },
-            onOpenSearch = { showSearch = true },
+            onOpenSearch = { section = LauncherSection.SEARCH },
             onUnavailableNavigation = {},
             assetUris = activeThemeAssetUris
         )
@@ -376,8 +378,30 @@ fun LauncherScreen(
                     onAction = { onIntent(HomeIntent.Retry) }
                 )
                   is HomeUiState.Success -> CompositionLocalProvider(
-                      LocalOpenApps provides { showApps = true },
-                      LocalOpenSearch provides { showApps = false; showSearch = true },
+                      LocalOpenHome provides { section = LauncherSection.HOME },
+                      LocalOpenApps provides { section = LauncherSection.APPS },
+                      LocalOpenSearch provides { section = LauncherSection.SEARCH },
+                      LocalLauncherSection provides section,
+                      LocalLauncherSectionContent provides if (section == LauncherSection.HOME) null else {
+                          @Composable {
+                              sectionStateHolder.SaveableStateProvider(section.name) {
+                                  when (section) {
+                                      LauncherSection.APPS -> AppDrawerScreen(
+                                          apps = state.apps,
+                                          onLaunch = { onIntent(HomeIntent.Launch(it)) }
+                                      )
+                                      LauncherSection.SEARCH -> AppSearchScreen(
+                                          apps = state.apps,
+                                          onLaunch = { onIntent(HomeIntent.Launch(it)) },
+                                          onDismiss = { section = LauncherSection.HOME },
+                                          onOpenSettings = { openSystemSettings(context) },
+                                          embedded = true
+                                      )
+                                      LauncherSection.HOME -> Unit
+                                  }
+                              }
+                          }
+                      },
                      LocalShortcutPackages provides state.appearance.shortcuts,
                      LocalSetShortcut provides { slot, packageName -> onIntent(HomeIntent.SelectShortcut(slot, packageName)) }
                   ) {
@@ -393,21 +417,13 @@ fun LauncherScreen(
                       customThemeName = activeCompositionName,
                       customThemeAssets = activeThemeAssetUris,
                       onOpenPersonalization = { showLauncherSettings = true },
-                      onOpenSearch = { showSearch = true }
+                      onOpenSearch = { section = LauncherSection.SEARCH }
                       )
-                     if (showApps) {
-                         AppDrawerScreen(
-                             apps = state.apps,
-                             onLaunch = { packageName -> showApps = false; onIntent(HomeIntent.Launch(packageName)) },
-                             onBack = { showApps = false },
-                             onOpenSystemSettings = { openSystemSettings(context) }
-                         )
-                     }
                     }
                    }
             }
            }
-           if (!showApps && state !is HomeUiState.Loading && state !is HomeUiState.Error) {
+           if (section == LauncherSection.HOME && state !is HomeUiState.Loading && state !is HomeUiState.Error) {
                val palette = LocalLauncherStyle.current.palette
                WeatherSummaryCard(
                    state = weatherState,
@@ -748,17 +764,6 @@ fun LauncherScreen(
                 }
             }
         }
-        if (showSearch && state is HomeUiState.Success) {
-            AppSearchDialog(
-                apps = successState?.apps ?: persistentListOf(),
-                onLaunch = { packageName -> onIntent(HomeIntent.Launch(packageName)) },
-                onDismiss = { showSearch = false },
-                onOpenSettings = {
-                    showSearch = false
-                    openSystemSettings(context)
-                }
-            )
-        }
         }
     }
 }
@@ -774,41 +779,75 @@ private fun openSystemSettings(context: Context) {
 @Composable
 private fun AppDrawerScreen(
     apps: List<com.tv.launcher.custom.core.model.apps.AppEntry>,
-    onLaunch: (String) -> Unit,
-    onBack: () -> Unit,
-    onOpenSystemSettings: () -> Unit
+    onLaunch: (String) -> Unit
 ) {
+    var focusedPackage by rememberSaveable { mutableStateOf<String?>(null) }
+    val focusTarget = apps.firstOrNull { it.packageName == focusedPackage } ?: apps.firstOrNull()
     val firstAppFocus = remember { FocusRequester() }
-    LaunchedEffect(apps) { runCatching { firstAppFocus.requestFocus() } }
-    androidx.tv.material3.Surface(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 48.dp, vertical = 32.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = onBack) { Text("‹") }
-                    Text(stringResource(R.string.launcher_all_apps), fontSize = 28.sp)
-                }
-                //Button(onClick = onOpenSystemSettings) { Text(stringResource(R.string.system_settings)) }
+    val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
+    val style = com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle.current
+    val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(style.tileRadius)
+    Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.launcher_all_apps), fontSize = 28.sp, color = style.palette.onBackground)
+                Text(androidx.compose.ui.res.pluralStringResource(R.plurals.launcher_app_count, apps.size, apps.size), fontSize = 16.sp, color = style.palette.onMuted)
             }
+            if (apps.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text(stringResource(R.string.launcher_no_apps), color = style.palette.onMuted)
+                }
+            } else {
             LazyVerticalGrid(
-                columns = GridCells.Adaptive(150.dp),
+                columns = GridCells.Adaptive(144.dp),
                 modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(24.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 items(apps, key = { it.packageName }) { app ->
-                    Button(
+                    androidx.tv.material3.Surface(
                         onClick = { onLaunch(app.packageName) },
-                        modifier = Modifier.fillMaxWidth().then(if (app == apps.firstOrNull()) Modifier.focusRequester(firstAppFocus) else Modifier)
+                        shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(cardShape),
+                        colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
+                            containerColor = style.palette.surface,
+                            contentColor = style.palette.onBackground,
+                            focusedContainerColor = style.palette.surface,
+                            focusedContentColor = style.palette.onBackground
+                        ),
+                        scale = androidx.tv.material3.ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
+                        border = androidx.tv.material3.ClickableSurfaceDefaults.border(
+                            focusedBorder = androidx.tv.material3.Border(
+                                androidx.compose.foundation.BorderStroke(3.dp, style.palette.accent), shape = cardShape
+                            )
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                            .then(if (app == focusTarget) Modifier.focusRequester(firstAppFocus) else Modifier)
+                            .onFocusChanged { if (it.isFocused) focusedPackage = app.packageName }
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            AppIcon(app.packageName, Modifier.padding(8.dp).size(64.dp))
-                            Text(app.label, maxLines = 1)
+                        Column(Modifier.fillMaxWidth().height(152.dp).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+                            if (isPreview) Text(app.label.take(2))
+                            else AppIcon(app.packageName, Modifier.size(56.dp))
+                            Text(app.label, maxLines = 2, minLines = 2, fontSize = 16.sp,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                         }
                     }
                 }
             }
+            }
         }
-    }
+}
+
+@androidx.compose.ui.tooling.preview.Preview(name = "Apps · Contenido integrado", widthDp = 640, heightDp = 460)
+@Composable
+private fun AppDrawerScreenPreview() = LauncherTheme(ThemeId.ROKU) {
+    AppDrawerScreen(
+        apps = listOf(
+            com.tv.launcher.custom.core.model.apps.AppEntry("sample.video", "Video"),
+            com.tv.launcher.custom.core.model.apps.AppEntry("sample.music", "Música")
+        ),
+        onLaunch = {}
+    )
 }
 
 private val BUNDLED_DEMO_THEMES = listOf(

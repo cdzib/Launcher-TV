@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -49,7 +50,9 @@ fun TizenLayout(
     onOpenPersonalization: () -> Unit = onOpenSettings
 ) {
     val onOpenSearch = LocalOpenSearch.current
-    var showApps by remember { mutableStateOf(false) }
+    val sectionContent = LocalLauncherSectionContent.current
+    val openApps = LocalOpenApps.current
+    val openHome = LocalOpenHome.current
     val palette = LocalLauncherStyle.current.palette
     val rootBackground = if (com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible.current) Color.Transparent else palette.background
     Row(modifier.fillMaxSize().background(rootBackground)) {
@@ -58,30 +61,30 @@ fun TizenLayout(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            TizenAction("", stringResource(R.string.launcher_settings), onOpenSettings, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.AccountCircle)
-            TizenAction("", stringResource(R.string.search_apps), onOpenSearch, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Search)
-            TizenAction("", stringResource(R.string.launcher_apps), { showApps = true }, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Apps)
+            TizenAction("", stringResource(R.string.studio_home), openHome, Modifier.size(44.dp), selected = LocalLauncherSection.current == LauncherSection.HOME, circular = true, icon = Icons.Outlined.Home)
+            TizenAction("", stringResource(R.string.system_settings), onOpenSettings, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.AccountCircle)
+            TizenAction("", stringResource(R.string.search_apps), onOpenSearch, Modifier.size(44.dp), selected = LocalLauncherSection.current == LauncherSection.SEARCH, circular = true, icon = Icons.Outlined.Search)
+            TizenAction("", stringResource(R.string.launcher_apps), openApps, Modifier.size(44.dp), selected = LocalLauncherSection.current == LauncherSection.APPS, circular = true, icon = Icons.Outlined.Apps)
             Spacer(Modifier.weight(1f))
-            TizenAction("", stringResource(R.string.launcher_settings), onOpenSettings, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Settings)
+            TizenAction("", stringResource(R.string.system_settings), onOpenSettings, Modifier.size(44.dp), circular = true, icon = Icons.Outlined.Settings)
             LauncherPersonalizationButton(onOpenPersonalization)
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxHeight()) {
+            if (sectionContent != null) {
+                sectionContent()
+            } else {
             val heroHeight = maxHeight * 0.46f
             val posterHeight = maxHeight * 0.17f
             val appSize = (maxHeight * 0.10f).coerceAtLeast(44.dp)
             Column(Modifier.fillMaxSize().padding(end = 16.dp, bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 InstalledAppHero(apps.firstOrNull(), onLaunch, Modifier.fillMaxWidth().height(heroHeight))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                    TizenAction(stringResource(R.string.google_tv_eyebrow), stringResource(R.string.google_tv_eyebrow), { showApps = false }, Modifier.width(112.dp).height(44.dp).focusRequester(firstItemFocus), selected = !showApps)
+                    TizenAction(stringResource(R.string.google_tv_eyebrow), stringResource(R.string.google_tv_eyebrow), openHome, Modifier.width(112.dp).height(44.dp).focusRequester(firstItemFocus), selected = true)
                     Spacer(Modifier.width(24.dp))
-                    TizenAction(stringResource(R.string.launcher_apps), stringResource(R.string.launcher_apps), { showApps = true }, Modifier.width(112.dp).height(44.dp), selected = showApps)
+                    TizenAction(stringResource(R.string.launcher_apps), stringResource(R.string.launcher_apps), openApps, Modifier.width(112.dp).height(44.dp))
                 }
-                if (!showApps) {
                     Text(stringResource(R.string.apps_for_you), color = palette.onMuted, fontSize = 13.sp)
                     InstalledAppCards(apps, onLaunch, posterHeight)
-                } else {
-                    Text(stringResource(R.string.your_apps), color = Color.White, fontSize = 18.sp)
-                }
                 LazyRow(contentPadding = PaddingValues(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     item {
                         TizenAction("", stringResource(R.string.search_apps), onOpenSearch, Modifier.size(appSize), selected = true, icon = Icons.Outlined.Search)
@@ -102,9 +105,7 @@ fun TizenLayout(
                         }
                     }
                 }
-                if (showApps) {
-                    Text(stringResource(R.string.tizen_apps_hint), color = Color(0xFFB5BFC4), fontSize = 14.sp)
-                }
+            }
             }
         }
     }
@@ -116,7 +117,7 @@ private fun TizenAction(label: String, description: String, onClick: () -> Unit,
     val shape = if (circular) CircleShape else RoundedCornerShape(50)
     Surface(
         onClick = onClick,
-        modifier = modifier.semantics { contentDescription = description },
+        modifier = modifier.selectLauncherSectionOnFocus(description, onClick).semantics { contentDescription = description },
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = ClickableSurfaceDefaults.colors(
             containerColor = if (selected) palette.accent else Color.Transparent,

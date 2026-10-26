@@ -55,7 +55,6 @@ import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.model.apps.AppEntry
-import kotlinx.coroutines.delay
 
 @Composable
 internal fun SearchBaseLayout(
@@ -72,7 +71,8 @@ internal fun SearchBaseLayout(
     onDismiss: () -> Unit,
     onVoice: () -> Unit,
     onShowKeyboard: () -> Unit,
-    onToggleKeyboard: () -> Unit
+    onToggleKeyboard: () -> Unit,
+    embedded: Boolean = false
 ) {
     val style = LocalLauncherStyle.current
     val palette = style.palette
@@ -83,15 +83,15 @@ internal fun SearchBaseLayout(
     val isPreview = LocalInspectionMode.current
 
     LaunchedEffect(Unit) {
-        if (!isPreview) {
-            delay(160)
+        if (!isPreview && !embedded && !keyboardVisible) {
+            withFrameNanos { }
             if (filteredApps.isNotEmpty()) firstResultFocus.requestFocus() else fieldFocus.requestFocus()
         }
     }
     LaunchedEffect(keyboardVisible, keyboardRequest) {
-        if (keyboardVisible && !isPreview) {
+        if (!isPreview && (!embedded || keyboardRequest > 0) && (keyboardVisible || keyboardRequest > 0)) {
             withFrameNanos { }
-            firstKeyFocus.requestFocus()
+            if (keyboardVisible) firstKeyFocus.requestFocus() else fieldFocus.requestFocus()
         }
     }
 
@@ -100,7 +100,7 @@ internal fun SearchBaseLayout(
             Brush.linearGradient(listOf(palette.background, lerp(palette.surface, palette.background, .18f)))
         )
     ) {
-        Column(
+        if (!embedded) Column(
             Modifier.width(72.dp)
                 .fillMaxHeight()
                 .background(Color.Black.copy(alpha = .16f))
@@ -218,7 +218,7 @@ internal fun SearchBaseLayout(
                         SearchAppTile(
                             app = app,
                             onClick = { onLaunch(app.packageName) },
-                            modifier = if (index == 0) Modifier.focusRequester(firstResultFocus) else Modifier,
+                            modifier = if (app.packageName == selectedApp?.packageName) Modifier.focusRequester(firstResultFocus) else Modifier,
                             height = 64.dp,
                             radius = 12.dp,
                             labelFontSize = 11.sp,

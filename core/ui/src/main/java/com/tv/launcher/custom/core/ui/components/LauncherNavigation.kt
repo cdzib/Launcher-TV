@@ -43,9 +43,13 @@ val LocalOpenSearch = staticCompositionLocalOf<() -> Unit> { {} }
 @Composable
 fun LauncherNavigation(onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
     val onOpenSearch = LocalOpenSearch.current
+    val onOpenHome = LocalOpenHome.current
+    val onOpenApps = LocalOpenApps.current
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Button(onClick = onOpenSearch) { Text(stringResource(R.string.search_apps)) }
-        Button(onClick = onOpenSettings) { Text(stringResource(R.string.launcher_settings)) }
+        Button(onClick = onOpenHome, modifier = Modifier.selectLauncherSectionOnFocus("Home", onOpenHome)) { Text(stringResource(R.string.studio_home)) }
+        Button(onClick = onOpenSearch, modifier = Modifier.selectLauncherSectionOnFocus("Search", onOpenSearch)) { Text(stringResource(R.string.search_apps)) }
+        Button(onClick = onOpenApps, modifier = Modifier.selectLauncherSectionOnFocus("Apps", onOpenApps)) { Text(stringResource(R.string.launcher_apps)) }
+        Button(onClick = onOpenSettings) { Text(stringResource(R.string.system_settings)) }
     }
 }
 

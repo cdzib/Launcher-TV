@@ -42,6 +42,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.onFocusChanged
+import com.tv.launcher.custom.core.ui.components.selectLauncherSectionOnFocus
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -130,7 +131,8 @@ fun CompositionCanvas(
     transparentBackground: Boolean = false,
     firstItemFocusRequester: FocusRequester? = null,
     onOpenPersonalization: (() -> Unit)? = null,
-    onOpenSystemSettingsFallback: (() -> Unit)? = null
+    onOpenSystemSettingsFallback: (() -> Unit)? = null,
+    sectionContent: (@Composable () -> Unit)? = null
 ) {
     val palette = LocalLauncherStyle.current.palette
     val settingsInTopBar = composition.topBar?.let { config ->
@@ -180,7 +182,9 @@ fun CompositionCanvas(
                             ) && data.itemCount(block) > 0
                                 && data.isItemClickable(block, 0)
                         }
-                        Column(Modifier.fillMaxWidth().weight(1f)) {
+                        if (sectionContent != null) {
+                            Box(Modifier.fillMaxWidth().weight(1f).padding(pad)) { sectionContent() }
+                        } else Column(Modifier.fillMaxWidth().weight(1f)) {
                             Column(
                                 Modifier.fillMaxWidth().weight(1f)
                                     .then(if (interactive) Modifier.verticalScroll(rememberScrollState()) else Modifier)
@@ -223,7 +227,7 @@ fun CompositionCanvas(
                         }
                     }
                 }
-                if (composition.topBar == null && composition.rail == null && composition.blocks.none { it.type == ThemeBlockType.TITLE }) {
+                if (sectionContent == null && composition.topBar == null && composition.rail == null && composition.blocks.none { it.type == ThemeBlockType.TITLE }) {
                     Text(
                         title,
                         Modifier.align(Alignment.TopStart)
@@ -575,7 +579,7 @@ private fun GlyphButton(label: String, color: Color, interactive: Boolean, onCli
     Tile(
         interactive,
         onClick,
-        Modifier.semantics { contentDescription = label },
+        Modifier.selectLauncherSectionOnFocus(label) { if (interactive) onClick() }.semantics { contentDescription = label },
         CircleShape,
         Color.Transparent,
         color,
@@ -591,6 +595,7 @@ private fun GlyphButton(label: String, color: Color, interactive: Boolean, onCli
 
 @Composable
 private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, onOpenPersonalization: (() -> Unit)? = null, onOpenSystemSettingsFallback: (() -> Unit)? = null) {
+    val activeSection = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
     val palette = LocalLauncherStyle.current.palette
     val text = cfg.textColor?.let { Color(it) } ?: palette.onBackground
     val muted = text.copy(alpha = 0.65f)
@@ -607,7 +612,9 @@ private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, on
         if (cfg.align != BlockAlign.START) Spacer(Modifier.weight(1f))
         if (cfg.style != TopBarStyle.MINIMAL) {
             renderedTabs.forEachIndexed { i, label ->
-                TopTab(label, i == current, cfg.style, text, muted, interactive, { current = i }) { data.onNavClick(label) }
+                val destination = com.tv.launcher.custom.core.ui.components.resolveLauncherSection(label)
+                val selected = if (interactive && destination != null) destination == activeSection else i == current
+                TopTab(label, selected, cfg.style, text, muted, interactive, { current = i; if (interactive && destination != null) data.onNavClick(label) }) { data.onNavClick(label) }
             }
         }
         if (cfg.align != BlockAlign.END) Spacer(Modifier.weight(1f))
@@ -658,6 +665,7 @@ private fun TopTab(
 @SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpenPersonalization: (() -> Unit)? = null, onOpenSystemSettingsFallback: (() -> Unit)? = null) {
+    val activeSection = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
     val palette = LocalLauncherStyle.current.palette
     val items = cfg.items.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
     var current by remember { mutableIntStateOf(0) }
@@ -680,17 +688,18 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
             Spacer(Modifier.height(6.d()))
         }
         items.forEachIndexed { i, label ->
-            val sel = i == current
+            val destination = com.tv.launcher.custom.core.ui.components.resolveLauncherSection(label)
+            val sel = if (interactive && destination != null) destination == activeSection else i == current
             val fg = if (sel && cfg.style != RailStyle.ICONS) Color.Black else muted
             val container = if (sel) Color.White.copy(alpha = if (cfg.style == RailStyle.ICONS) 0.2f else 0.92f) else Color.Transparent
             when (cfg.style) {
                 RailStyle.ICONS -> Tile(
                     interactive, { data.onNavClick(label) }, Modifier, CircleShape, container, text,
-                    FocusStyle.SCALE_BORDER, 1.1f, text, { current = i }
+                    FocusStyle.SCALE_BORDER, 1.1f, text, { current = i; if (interactive && destination != null) data.onNavClick(label) }
                 ) { Box(Modifier.size(44.d()), contentAlignment = Alignment.Center) { NavigationIcon(label, text, Modifier.size(24.d())) } }
                 else -> Tile(
                     interactive, { data.onNavClick(label) }, Modifier.fillMaxWidth(), RoundedCornerShape(10.d()), container, fg,
-                    FocusStyle.BORDER, 1f, text, { current = i }
+                    FocusStyle.BORDER, 1f, text, { current = i; if (interactive && destination != null) data.onNavClick(label) }
                 ) {
                     Row(Modifier.padding(horizontal = 12.d(), vertical = 10.d()), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.d())) {
                         if (cfg.style == RailStyle.ICONS_LABELS) {

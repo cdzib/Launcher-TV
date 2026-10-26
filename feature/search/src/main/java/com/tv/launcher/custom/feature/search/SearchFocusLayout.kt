@@ -49,7 +49,6 @@ import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.model.apps.AppEntry
-import kotlinx.coroutines.delay
 
 @Composable
 internal fun SearchFocusLayout(
@@ -66,7 +65,9 @@ internal fun SearchFocusLayout(
     onOpenSettings: () -> Unit,
     onVoice: () -> Unit,
     onShowKeyboard: () -> Unit,
-    onToggleKeyboard: () -> Unit
+    onToggleKeyboard: () -> Unit,
+    embedded: Boolean = false,
+    selectedPackage: String? = null
 ) {
     val style = LocalLauncherStyle.current
     val palette = style.palette
@@ -76,20 +77,20 @@ internal fun SearchFocusLayout(
     val panelBackground = lerp(palette.surface, palette.background, .9f)
 
     LaunchedEffect(Unit) {
-        if (!isPreview) {
-            delay(160)
+        if (!isPreview && !embedded && !keyboardVisible) {
+            withFrameNanos { }
             if (filteredApps.isNotEmpty()) firstResultFocus.requestFocus() else fieldFocus.requestFocus()
         }
     }
     LaunchedEffect(keyboardVisible, keyboardRequest) {
-        if (keyboardVisible && !isPreview) {
+        if (!isPreview && (!embedded || keyboardRequest > 0) && (keyboardVisible || keyboardRequest > 0)) {
             withFrameNanos { }
-            firstKeyFocus.requestFocus()
+            if (keyboardVisible) firstKeyFocus.requestFocus() else fieldFocus.requestFocus()
         }
     }
 
     Row(Modifier.fillMaxSize().background(palette.background)) {
-        FocusRail(
+        if (!embedded) FocusRail(
             modifier = Modifier.fillMaxWidth(.27f).fillMaxHeight(),
             onHome = onDismiss,
             onApps = onDismiss,
@@ -164,7 +165,7 @@ internal fun SearchFocusLayout(
                                 SearchAppTile(
                                     app = app,
                                     onClick = { onLaunch(app.packageName) },
-                                    modifier = if (index == 0) Modifier.focusRequester(firstResultFocus) else Modifier,
+                                    modifier = if (app.packageName == (selectedPackage ?: filteredApps.firstOrNull()?.packageName)) Modifier.focusRequester(firstResultFocus) else Modifier,
                                     height = 56.dp,
                                     radius = style.tileRadius,
                                     labelFontSize = 12.sp,

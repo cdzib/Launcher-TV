@@ -48,6 +48,7 @@ fun BottomBarLayout(
     modifier: Modifier = Modifier,
     onOpenPersonalization: () -> Unit = onOpenSettings
 ) {
+    val sectionContent = LocalLauncherSectionContent.current
     val palette = LocalLauncherStyle.current.palette
     val featuredApp = apps.first()
     val barModifier = if (expandFocused) {
@@ -68,6 +69,9 @@ fun BottomBarLayout(
                 LauncherPersonalizationButton(onOpenPersonalization)
             }
         }
+        if (sectionContent != null) {
+            Box(Modifier.fillMaxSize().padding(top = 80.dp)) { sectionContent() }
+        } else {
         if (expandFocused) {
             Column(
                 Modifier.align(Alignment.TopStart).padding(top = 48.dp).width(220.dp),
@@ -101,6 +105,7 @@ fun BottomBarLayout(
                     AppTile(app, 144.dp, 84.dp, { onLaunch(app.packageName) }, focusModifier, labelInside = true)
                 }
             }
+        }
         }
     }
 }

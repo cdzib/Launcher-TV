@@ -30,15 +30,19 @@ fun HomeContent(
     val firstItemFocus = remember { FocusRequester() }
     val onLaunch = { packageName: String -> onIntent(HomeIntent.Launch(packageName)) }
     val onOpenApps = LocalOpenApps.current
-    val installedCanvasData = remember(state.apps, state.appearance.shortcuts, onIntent, onOpenSettings, onOpenApps, onUnavailableNavigation, onOpenPersonalization, onOpenSearch) {
+    val onOpenHome = com.tv.launcher.custom.core.ui.components.LocalOpenHome.current
+    val section = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
+    val installedCanvasData = remember(state.apps, state.appearance.shortcuts, onIntent, onOpenSettings, onOpenApps, onUnavailableNavigation, onOpenPersonalization, onOpenSearch, onOpenHome) {
         val favoritePackages = state.appearance.shortcuts.values.toSet()
         InstalledAppsCanvasData(state.apps, state.apps.filter { it.packageName in favoritePackages },
             onLaunch, onOpenApps, onOpenSettings, onUnavailableNavigation,
             onOpenPersonalization = onOpenPersonalization,
             onOpenSearch = onOpenSearch,
+            onOpenHome = onOpenHome,
             onOpenSystemSettings = onOpenSettings)
     }
     LaunchedEffect(layout, customComposition, state.apps) {
+        if (section != com.tv.launcher.custom.core.ui.components.LauncherSection.HOME) return@LaunchedEffect
         val hasFocusableApps = customComposition?.blocks?.any { block ->
             when (block.type) {
                 ThemeBlockType.APPS_ROW, ThemeBlockType.APPS_GRID -> state.apps.isNotEmpty()
