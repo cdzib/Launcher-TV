@@ -1,6 +1,31 @@
 # Section shell: Inicio, Buscar y Apps en una sola vista
 
-Estado: EN REVISIÓN. Implementación Android no iniciada.
+Estado: IMPLEMENTADO — navegación por secciones, sin aside global; validación en TV pendiente.
+
+## Criterios del corte Android acordado
+
+Esta sección reemplaza el plan inicial de espina universal y gobierna la implementación actual.
+
+- N1: Inicio, Apps y Buscar son un único estado saveable del host; no hay booleanos independientes que permitan superponer secciones.
+- N2: los ocho perfiles y los temas declarativos conservan sus controles de navegación y sustituyen solo su contenido mediante un slot del host.
+- N3: Inicio declarativo deja de ser no-op; los callbacks de Inicio, Apps y Buscar seleccionan la sección correspondiente.
+- N4: Buscar integrado no abre Dialog ni dibuja su rail propio. Back oculta primero el teclado y después regresa a Inicio. Apps regresa a Inicio con Back.
+- N5: SaveableStateHolder conserva consulta/teclado y scroll de Apps al cambiar de sección. Lanzar una app no cambia la sección.
+- N6: Ajustes y confirmaciones siguen con su comportamiento actual. No se modifica el formato ZIP ni se añaden módulos o dependencias entre features.
+
+Pruebas previstas: unit de Back, resolución de etiquetas y callbacks declarativos; pruebas Compose de slot único por tema y cambio mediante tabs; build/lint/tests. D-pad, foco y recreación del proceso requieren dispositivo Android TV. Los filtros, voz, historial de búsqueda y recomendaciones del prototipo quedan fuera de este corte: no se inventa funcionalidad nueva.
+
+### Evidencia del corte Android
+
+- `LauncherSection` reemplaza los booleanos `showApps` / `showSearch` en el host. `LocalLauncherSectionContent` permite montar la sección dentro de los layouts existentes.
+- `AppSearchScreen(embedded = true)` mantiene la variante visual del tema y omite su navegación interna duplicada; Back oculta primero el teclado.
+- `InstalledAppsCanvasData` enruta Inicio, Apps y Buscar, incluyendo etiquetas en inglés. «Buscar apps» tiene prioridad de búsqueda y no se confunde con Apps.
+- Los layouts integrados y `CompositionCanvas` sustituyen el contenido Home, sin dibujar Home detrás de otra pantalla de Apps.
+- `LauncherSectionTest` y `LauncherSectionNavigationTest`: pruebas JVM de Back, etiquetas y navegación de ida/vuelta, incluido el decorador de assets.
+- `LauncherSectionContentTest`: pruebas Compose para los ocho perfiles y tabs declarativos. APK de pruebas compilado; ejecución pendiente por ausencia de dispositivo local.
+- Gates locales: `verifyModuleBoundaries`, `testDebugUnitTest`, `:core:model:test`, `lintDebug`, `:app:assembleDebug` y `:core:theme:assembleDebugAndroidTest`.
+- Release: compilación y R8 completados; `:app:packageRelease` bloqueado por contraseña rechazada en el keystore local. No se alteraron credenciales ni firma para evitar el fallo.
+- Pendientes: ejecutar las pruebas Compose y verificar recorridos D-pad, foco, scroll y restauración tras recreación en Android TV. No se afirma validación visual en hardware.
 
 ## Corrección acordada: navegación propia por tema
 

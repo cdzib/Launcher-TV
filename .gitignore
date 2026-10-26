@@ -26,6 +26,19 @@ signing.properties
 
 # Local documentation and design references (not published for now)
 /docs/
+!/docs/
+/docs/*
+!/docs/README.md
+!/docs/architecture/
+!/docs/specs/
+!/docs/design/
+!/docs/operations/
+/docs/**/*.png
+/docs/**/*.jpg
+/docs/**/*.jpeg
+/docs/**/*.html
+/docs/**/*.json
+/docs/**/.DS_Store
 /design/
 /designs/
 /desing*/

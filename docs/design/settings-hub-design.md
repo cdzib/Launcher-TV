@@ -4,7 +4,7 @@
 > Objetivo: dar acceso a los ajustes del sistema y del proyector desde el launcher,
 > reutilizando las pantallas de `com.android.tv.settings` por `Intent` y aportando
 > valor propio donde no se necesitan permisos privilegiados.
-> Mockups: `docs/design/settings-hub/`
+> Mockups: `settings-hub/`
 
 ---
 
@@ -392,7 +392,7 @@ resuelven en el dispositivo.
 
 ## Anexo · Prototipo interactivo
 
-Abre **`SETTINGS_HUB_PROTOTYPE.html`** en un navegador (Safari/Chrome, sin servidor).
+Abre **`settings-hub-prototype.html`** en un navegador (Safari/Chrome, sin servidor).
 
 Controles:
 
@@ -404,18 +404,18 @@ Controles:
 - Las filas OEM abren la app del fabricante simulada.
 - Las filas SHIZUKU piden autorización y ejecutan la operación con confirmación.
 
-Capturas del prototipo: `docs/design/settings-hub/prototype/`.
+Capturas del prototipo: `settings-hub/prototype/`.
 
 ## Anexo · Mockups
 
 ### Inicio
 
-![Inicio](docs/design/settings-hub/hub-overview.png)
+![Inicio](settings-hub/hub-overview.png)
 
 ### Pantalla y sonido (lista + panel de detalle)
 
-![Pantalla y sonido](docs/design/settings-hub/hub-display.png)
+![Pantalla y sonido](settings-hub/hub-display.png)
 
 ### Proyector + estado de Shizuku
 
-![Proyector](docs/design/settings-hub/hub-projector.png)
+![Proyector](settings-hub/hub-projector.png)

@@ -19,7 +19,7 @@ conectar dispositivos, contratar servicios ni ejecutar operaciones privilegiadas
 | Área | Evidencia | Consecuencia para el plan |
 |---|---|---|
 | Plataforma | `app/build.gradle.kts`: minSdk 26, targetSdk/compileSdk 35 | Mantener compatibilidad desde Android 8; comprobar capacidades por dispositivo |
-| Arquitectura | `ARCHITECTURE.md`, `settings.gradle.kts` | Integración en `:app`; features independientes; contratos JVM en `:core:model` |
+| Arquitectura | `../architecture/architecture.md`, `settings.gradle.kts` | Integración en `:app`; features independientes; contratos JVM en `:core:model` |
 | Reloj compartido | `core/ui/.../components/ClockText.kt` | Ya calcula hora local y actualiza al cambio de minuto |
 | Reloj del renderer | `core/theme/.../CompositionCanvas.kt`, función privada `ClockText` | Segunda implementación, formato fijo y actualización cada 15 segundos |
 | Configuración de reloj | `ThemeComposition.kt`, `TopBarConfig.showClock`; inspector del editor | Existe visibilidad en cabecera, no un bloque configurable de reloj |
@@ -123,7 +123,7 @@ y de `:core:model`. Antes de F4/F6 se elegirá un límite concreto: no añadirlo
 `:core:ui` ni a la lógica de datos de temas. Si su tamaño justifica módulos dedicados,
 la propuesta es `:core:device` y `:core:widgets`, consumidos por `:app`; las features
 seguirán recibiendo contratos/estado/callbacks. Esta decisión se registra antes de tocar
-Gradle y se actualiza `ARCHITECTURE.md` y la validación de fronteras si procede.
+Gradle y se actualiza `../architecture/architecture.md` y la validación de fronteras si procede.
 
 No se introducen clases base, Room, Retrofit, WorkManager ni un cliente ADB por defecto.
 Las dependencias nuevas deben resolver una necesidad concreta y revisar licencia y
