@@ -1,5 +1,6 @@
 package com.tv.launcher.custom.feature.settings
 
+import android.annotation.SuppressLint
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -90,6 +91,7 @@ fun LauncherSettingsDialog(
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun LauncherSettingsContent(
     appearance: LauncherAppearance,
