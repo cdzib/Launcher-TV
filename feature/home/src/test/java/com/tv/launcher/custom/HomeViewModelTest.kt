@@ -8,6 +8,7 @@ import com.tv.launcher.custom.feature.home.presentation.state.HomeIntent
 import com.tv.launcher.custom.feature.home.presentation.state.HomeUiState
 import com.tv.launcher.custom.feature.home.presentation.viewmodel.HomeViewModel
 import com.tv.launcher.custom.core.model.theme.*
+import com.tv.launcher.custom.core.model.weather.*
 import com.tv.launcher.custom.core.ui.theme.LayoutKind
 import com.tv.launcher.custom.core.ui.theme.toStyle
 import androidx.compose.ui.graphics.toArgb
@@ -59,8 +60,22 @@ class HomeViewModelTest {
         val appsRepo = FakeApps(apps)
         return HomeViewModel(
             ObserveAppsUseCase(appsRepo), LaunchAppUseCase(appsRepo),
-            ObserveAppearanceUseCase(themeRepo), SetAppearanceUseCase(themeRepo)
+            ObserveAppearanceUseCase(themeRepo), SetAppearanceUseCase(themeRepo),
+            FakeWeather(), FakeWeatherSettings()
         )
+    }
+
+    private class FakeWeather : WeatherRepository {
+        val cities = listOf(WeatherCity(1L, "Mérida", "México", 20.9674, -89.6237))
+        override suspend fun searchCities(query: String) = cities
+        override suspend fun getCurrentWeather(city: WeatherCity, unit: WeatherUnit) =
+            CurrentWeather(28.0, unit, 1, true, java.time.Instant.parse("2026-10-25T12:00:00Z"))
+    }
+
+    private class FakeWeatherSettings(initial: WeatherSettings = WeatherSettings()) : WeatherSettingsRepository {
+        private val flow = MutableStateFlow(initial)
+        override fun observeSettings(): Flow<WeatherSettings> = flow
+        override suspend fun saveSettings(settings: WeatherSettings) { flow.value = settings }
     }
 
     @Test
@@ -156,6 +171,29 @@ class HomeViewModelTest {
     @Test
     fun `con apps instaladas el estado es Success`() {
         assertTrue(viewModel(listOf(AppEntry("a", "A"))).state.value is HomeUiState.Success)
+    }
+
+    @Test
+    fun `buscar y seleccionar ciudad guarda preferencia local y carga su clima`() {
+        val appsRepository = FakeApps(listOf(AppEntry("a", "A")))
+        val themeRepository = FakeTheme()
+        val weatherRepository = FakeWeather()
+        val weatherSettingsRepository = FakeWeatherSettings()
+        val vm = HomeViewModel(
+            ObserveAppsUseCase(appsRepository), LaunchAppUseCase(appsRepository),
+            ObserveAppearanceUseCase(themeRepository), SetAppearanceUseCase(themeRepository),
+            weatherRepository, weatherSettingsRepository
+        )
+
+        vm.onIntent(HomeIntent.SearchWeatherCities("Mérida"))
+        assertEquals("Mérida", vm.weatherState.value.cityQuery)
+        assertEquals("Mérida", vm.weatherState.value.cities.single().name)
+
+        vm.onIntent(HomeIntent.SelectWeatherCity(weatherRepository.cities.single()))
+
+        assertEquals(weatherRepository.cities.single(), vm.weatherState.value.settings.city)
+        assertTrue(vm.weatherState.value.settings.isEnabled)
+        assertEquals(28.0, vm.weatherState.value.currentWeather?.temperature)
     }
 
     @Test

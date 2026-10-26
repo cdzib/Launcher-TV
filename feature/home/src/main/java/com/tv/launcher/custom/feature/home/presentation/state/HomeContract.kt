@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.runtime.Immutable
 import com.tv.launcher.custom.core.model.apps.AppEntry
 import com.tv.launcher.custom.core.model.theme.*
+import com.tv.launcher.custom.core.model.weather.*
 import kotlinx.collections.immutable.ImmutableList
 
 @Immutable
@@ -33,7 +34,25 @@ sealed interface HomeIntent {
     data class SelectTileShape(val value: TileShapeChoice) : HomeIntent
     data class SelectShortcut(val slot: Int, val packageName: String) : HomeIntent
     data object Retry : HomeIntent
+    data class SearchWeatherCities(val query: String) : HomeIntent
+    data class UpdateWeatherCityQuery(val query: String) : HomeIntent
+    data class SelectWeatherCity(val city: WeatherCity) : HomeIntent
+    data class SetWeatherUnit(val unit: WeatherUnit) : HomeIntent
+    data class SetWeatherEnabled(val isEnabled: Boolean) : HomeIntent
+    data object ClearWeatherSettings : HomeIntent
+    data object RefreshWeather : HomeIntent
 }
+
+@Immutable
+data class WeatherUiState(
+    val settings: WeatherSettings = WeatherSettings(),
+    val cityQuery: String = "",
+    val cities: List<WeatherCity> = emptyList(),
+    val isSearchingCities: Boolean = false,
+    val currentWeather: CurrentWeather? = null,
+    val isLoadingWeather: Boolean = false,
+    val hasWeatherError: Boolean = false
+)
 
 sealed interface HomeEffect {
     data class ShowMessage(@StringRes val messageRes: Int) : HomeEffect
