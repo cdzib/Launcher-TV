@@ -73,7 +73,9 @@ fun LauncherSettingsDialog(
     onApplyInstalledTheme: (String) -> Unit = {},
     onDeleteInstalledTheme: (String) -> Unit = {},
     apps: ImmutableList<AppEntry> = persistentListOf(),
-    previewData: CanvasData = PlaceholderCanvasData
+    previewData: CanvasData = PlaceholderCanvasData,
+    onOpenDeviceTools: () -> Unit = {},
+    onOpenWeatherSettings: () -> Unit = {}
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -82,7 +84,8 @@ fun LauncherSettingsDialog(
         LauncherSettingsContent(
             appearance, onIntent, onDismiss, onChooseBackgroundImage, onImportTheme,
             onExportTheme, onOpenOnlineThemes, onCreateCustomTheme, installedThemes,
-            onEditInstalledTheme, onApplyInstalledTheme, onDeleteInstalledTheme, apps, previewData
+            onEditInstalledTheme, onApplyInstalledTheme, onDeleteInstalledTheme, apps, previewData,
+            onOpenDeviceTools, onOpenWeatherSettings
         )
     }
 }
@@ -103,6 +106,8 @@ private fun LauncherSettingsContent(
     onDeleteInstalledTheme: (String) -> Unit,
     apps: ImmutableList<AppEntry>,
     previewData: CanvasData,
+    onOpenDeviceTools: () -> Unit,
+    onOpenWeatherSettings: () -> Unit,
     initialCategory: SettingsCategory = SettingsCategory.THEMES
 ) {
     var category by remember { mutableStateOf(initialCategory) }
@@ -161,6 +166,18 @@ private fun LauncherSettingsContent(
                             onClick = { category = item }
                         )
                     }
+                    SettingsButton(
+                        stringResource(R.string.weather_settings_title),
+                        icon = Icons.Default.Cloud,
+                        modifier = Modifier.fillMaxWidth().focusProperties { right = contentFocus },
+                        onClick = onOpenWeatherSettings
+                    )
+                    SettingsButton(
+                        stringResource(R.string.device_tools_title),
+                        icon = Icons.Default.Build,
+                        modifier = Modifier.fillMaxWidth().focusProperties { right = contentFocus },
+                        onClick = onOpenDeviceTools
+                    )
                 }
                 Box(Modifier.fillMaxHeight().width(1.dp).background(SettingsColors.divider))
                 // These short panels stay composed so D-pad entry targets remain attached after scrolling.
@@ -525,6 +542,6 @@ private fun LauncherSettingsPreviewContent(category: SettingsCategory, themes: L
     val appearance = themes.firstOrNull()?.appearance ?: LauncherAppearance()
     LauncherTheme(appearance) {
         LauncherSettingsContent(appearance, {}, {}, {}, {}, {}, {}, {}, themes, {}, {}, {},
-            persistentListOf(), PlaceholderCanvasData, initialCategory = category)
+            persistentListOf(), PlaceholderCanvasData, {}, {}, initialCategory = category)
     }
 }

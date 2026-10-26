@@ -67,6 +67,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.tv.launcher.custom.core.ui.components.LauncherPersonalizationButton
+import com.tv.launcher.custom.core.ui.components.ClockText as SharedClockText
 import com.tv.launcher.custom.core.ui.components.isPersonalizationLabel
 import com.tv.launcher.custom.core.ui.components.shouldShowRailProfileAvatar
 import com.tv.launcher.custom.core.ui.components.getRenderedTopBarTabs
@@ -87,10 +88,6 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
-import kotlinx.coroutines.delay
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 private const val REFERENCE_WIDTH_DP = 960f
 private val LocalCanvasScale = compositionLocalOf { 1f }
@@ -574,20 +571,6 @@ private fun topBarShowsSettings(cfg: TopBarConfig): Boolean = when (cfg.style) {
 }
 
 @Composable
-private fun ClockText(live: Boolean, color: Color, size: TextUnit) {
-    var now by remember { mutableStateOf("12:45") }
-    if (live) {
-        LaunchedEffect(Unit) {
-            while (true) {
-                now = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-                delay(15_000)
-            }
-        }
-    }
-    Text(now, fontSize = size, color = color)
-}
-
-@Composable
 private fun GlyphButton(label: String, color: Color, interactive: Boolean, onClick: () -> Unit) {
     Tile(
         interactive,
@@ -628,7 +611,7 @@ private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, on
             }
         }
         if (cfg.align != BlockAlign.END) Spacer(Modifier.weight(1f))
-        if (cfg.showClock) ClockText(interactive, text, 18.s())
+        if (cfg.showClock) SharedClockText(fontSize = 18.s(), color = text)
         if (topBarShowsSettings(cfg)) {
             GlyphButton("Ajustes", text, interactive) { data.onNavClick("Ajustes") }
         }

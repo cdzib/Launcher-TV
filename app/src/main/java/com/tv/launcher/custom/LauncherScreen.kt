@@ -70,6 +70,9 @@ import com.tv.launcher.custom.feature.home.presentation.state.HomeEffect
 import com.tv.launcher.custom.feature.home.presentation.state.HomeIntent
 import com.tv.launcher.custom.feature.home.presentation.state.HomeUiState
 import com.tv.launcher.custom.feature.home.presentation.viewmodel.HomeViewModel
+import com.tv.launcher.custom.device.DeviceToolsDialog
+import com.tv.launcher.custom.weather.WeatherSettingsDialog
+import com.tv.launcher.custom.weather.WeatherSummaryCard
 import com.tv.launcher.custom.core.data.theme.*
 import com.tv.launcher.custom.core.model.theme.*
 import java.io.ByteArrayOutputStream
@@ -128,6 +131,7 @@ private fun hasUsableDocumentsPicker(context: Context): Boolean {
 @Composable
 fun LauncherRoute(viewModel: HomeViewModel = hiltViewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val weatherState by viewModel.weatherState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     BackHandler(enabled = true) { /* un launcher no sale con Back */ }
@@ -141,14 +145,21 @@ fun LauncherRoute(viewModel: HomeViewModel = hiltViewModel()) {
         }
     }
 
-    LauncherScreen(state = state, onIntent = viewModel::onIntent)
+    LauncherScreen(state = state, onIntent = viewModel::onIntent, weatherState = weatherState)
 }
 
 @Composable
-fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
+fun LauncherScreen(
+    state: HomeUiState,
+    onIntent: (HomeIntent) -> Unit,
+    weatherState: com.tv.launcher.custom.feature.home.presentation.state.WeatherUiState =
+        com.tv.launcher.custom.feature.home.presentation.state.WeatherUiState()
+) {
     val successState = state as? HomeUiState.Success
     val appearance = successState?.appearance
     var showLauncherSettings by remember { mutableStateOf(false) }
+    var showDeviceTools by remember { mutableStateOf(false) }
+    var showWeatherSettings by remember { mutableStateOf(false) }
     var showApps by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var pendingTheme by remember { mutableStateOf<PendingThemeImport?>(null) }
@@ -373,7 +384,7 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                       customThemeAssets = activeThemeAssetUris,
                       onOpenPersonalization = { showLauncherSettings = true },
                       onOpenSearch = { showSearch = true }
-                     )
+                      )
                      if (showApps) {
                          AppDrawerScreen(
                              apps = state.apps,
@@ -385,8 +396,20 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                     }
                    }
             }
-          }
-          if (state !is HomeUiState.Success) {
+           }
+           if (!showApps && state !is HomeUiState.Loading && state !is HomeUiState.Error) {
+               val palette = LocalLauncherStyle.current.palette
+               WeatherSummaryCard(
+                   state = weatherState,
+                   backgroundColor = palette.surface,
+                   contentColor = palette.onBackground,
+                   mutedColor = palette.onMuted,
+                   onIntent = onIntent,
+                   onOpenSettings = { showWeatherSettings = true },
+                   modifier = Modifier.align(Alignment.TopStart).padding(24.dp)
+               )
+           }
+           if (state !is HomeUiState.Success) {
               Button(
                   onClick = { showLauncherSettings = true },
                   modifier = Modifier.align(Alignment.TopEnd).padding(24.dp)
@@ -438,6 +461,8 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                 installedThemes = installedThemes,
                 apps = successState?.apps ?: persistentListOf(),
                 previewData = compositionPreviewData,
+                onOpenDeviceTools = { showLauncherSettings = false; showDeviceTools = true },
+                onOpenWeatherSettings = { showLauncherSettings = false; showWeatherSettings = true },
                 onEditInstalledTheme = { themeId ->
                     coroutineScope.launch {
                         val installed = withContext(Dispatchers.IO) { installedThemeStore.load(themeId) }
@@ -485,6 +510,19 @@ fun LauncherScreen(state: HomeUiState, onIntent: (HomeIntent) -> Unit) {
                         themeLibraryRefresh++
                     }
                 }
+            )
+        }
+        if (showWeatherSettings) {
+            WeatherSettingsDialog(
+                state = weatherState,
+                onIntent = onIntent,
+                onDismiss = { showWeatherSettings = false }
+            )
+        }
+        if (showDeviceTools) {
+            DeviceToolsDialog(
+                apps = successState?.apps?.toList().orEmpty(),
+                onDismiss = { showDeviceTools = false }
             )
         }
         if (showRemoteThemes) {

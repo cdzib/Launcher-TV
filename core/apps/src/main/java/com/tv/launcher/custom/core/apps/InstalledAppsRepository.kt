@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.ApplicationInfo
 import androidx.core.content.ContextCompat
 import com.tv.launcher.custom.core.model.DomainError
 import com.tv.launcher.custom.core.model.DomainResult
@@ -63,7 +64,14 @@ class InstalledAppsRepository @Inject constructor(
         val leanback = query(Intent.CATEGORY_LEANBACK_LAUNCHER)
         return leanback.ifEmpty { query(Intent.CATEGORY_LAUNCHER) }
             .filter { it.activityInfo.packageName != context.packageName }
-            .map { AppEntry(it.activityInfo.packageName, it.loadLabel(pm).toString()) }
+            .map { resolveInfo ->
+                val applicationInfo = resolveInfo.activityInfo.applicationInfo
+                AppEntry(
+                    packageName = applicationInfo.packageName,
+                    label = resolveInfo.loadLabel(pm).toString(),
+                    isSystemApp = applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM != 0
+                )
+            }
             .distinctBy { it.packageName }
             .sortedBy { it.label.lowercase() }
     }
