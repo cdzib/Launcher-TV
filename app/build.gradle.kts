@@ -60,6 +60,8 @@ android {
 }
 
 dependencies {
+    testImplementation(libs.junit)
+    testImplementation(project(":core:data"))
     implementation(project(":core:model"))
     implementation(project(":core:ui"))
     implementation(project(":core:theme"))

@@ -19,6 +19,7 @@ class InstalledAppsCanvasData(
     private val onOpenSearch: () -> Unit = onOpenApps,
     private val onOpenHome: () -> Unit = {}
 ) : CanvasData {
+    override fun installedApps() = apps
     private fun appsFor(block: ThemeBlock): List<AppEntry> = when (block.type) {
         ThemeBlockType.FAVORITES_ROW -> favorites
         ThemeBlockType.RECENTS_ROW -> emptyList()

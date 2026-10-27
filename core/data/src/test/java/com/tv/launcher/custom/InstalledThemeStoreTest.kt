@@ -12,6 +12,35 @@ import org.junit.Test
 
 class InstalledThemeStoreTest {
     @Test
+    fun `reemplazar conserva el paquete anterior tras recrear el store sin duplicar temas`() {
+        val root = Files.createTempDirectory("theme-backup-test").toFile()
+        try {
+            val store = InstalledThemeStore(root)
+            val original = ThemeArchiveWriter.write(LauncherAppearance(), null)
+            val installed = store.install(original)
+            val edited = ThemeArchiveWriter.write(LauncherAppearance(), null, name = "Editado", id = installed.id)
+            store.install(edited, replaceExisting = true)
+
+            val reopened = InstalledThemeStore(root)
+            org.junit.Assert.assertArrayEquals(original, reopened.backupArchiveBytes(installed.id))
+            org.junit.Assert.assertArrayEquals(edited, reopened.archiveBytes(installed.id))
+            assertEquals(1, reopened.list().size)
+            assertNull(reopened.backupArchiveBytes("../../outside"))
+
+            val next = ThemeArchiveWriter.write(LauncherAppearance(), null, name = "Siguiente", id = installed.id)
+            reopened.install(next, replaceExisting = true)
+            org.junit.Assert.assertArrayEquals(edited, reopened.backupArchiveBytes(installed.id))
+            assertThrows(ThemeArchiveException::class.java) {
+                reopened.install(byteArrayOf(1, 2, 3), replaceExisting = true)
+            }
+            org.junit.Assert.assertArrayEquals(edited, reopened.backupArchiveBytes(installed.id))
+            org.junit.Assert.assertArrayEquals(next, reopened.archiveBytes(installed.id))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun `instala enumera carga y elimina temas sin tocar los otros`() {
         val root = Files.createTempDirectory("installed-themes-test").toFile()
         try {

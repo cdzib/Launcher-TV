@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -47,7 +48,7 @@ fun resolveShortcut(apps: List<AppEntry>, shortcuts: Map<Int, String>, slot: Int
 
 /** Only installed-package artwork. No promotional screenshots or synthetic destinations. */
 @Composable
-private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier) {
+private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier, contentScale: Float = 1f) {
     val context = LocalContext.current
     val inspection = LocalInspectionMode.current
     val artwork by produceState<ImageBitmap?>(null, app.packageName, inspection) {
@@ -61,49 +62,51 @@ private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier) {
     }
     Box(modifier, contentAlignment = Alignment.Center) {
         artwork?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
-            ?: Text(app.label.take(2).uppercase(), color = Color.White, fontSize = 28.sp)
+            ?: Text(app.label.take(2).uppercase(), color = Color.White, fontSize = (28 * contentScale).sp)
     }
 }
 
 @Composable
-fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modifier = Modifier) {
+fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modifier = Modifier,
+    interactive: Boolean = true, contentScale: Float = 1f) {
     val palette = LocalLauncherStyle.current.palette
     val openApps = LocalOpenApps.current
-    val shape = RoundedCornerShape(8.dp)
+    val shape = RoundedCornerShape((8 * contentScale).dp)
     Surface(
-        onClick = { if (app == null) openApps() else onLaunch(app.packageName) },
-        modifier = modifier,
+        onClick = { if (interactive) { if (app == null) openApps() else onLaunch(app.packageName) } },
+        modifier = modifier.then(Modifier.focusProperties { canFocus = interactive }),
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = ClickableSurfaceDefaults.colors(containerColor = palette.surface, focusedContainerColor = palette.surface),
         border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
         Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f))))) {
-            if (app != null) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding(20.dp))
-            Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.5f).padding(28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(app?.label ?: stringResource(R.string.launcher_apps), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(stringResource(R.string.open_installed_app), color = Color(0xFFE0E0E0), fontSize = 16.sp)
+            if (app != null) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding((20 * contentScale).dp), contentScale)
+            Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.5f).padding((28 * contentScale).dp), verticalArrangement = Arrangement.spacedBy((12 * contentScale).dp)) {
+                Text(app?.label ?: stringResource(R.string.launcher_apps), color = Color.White, fontSize = (28 * contentScale).sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.open_installed_app), color = Color(0xFFE0E0E0), fontSize = (16 * contentScale).sp)
             }
         }
     }
 }
 
 @Composable
-fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: Dp, modifier: Modifier = Modifier) {
-    LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(4.dp)) {
+fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: Dp, modifier: Modifier = Modifier,
+    interactive: Boolean = true, contentScale: Float = 1f) {
+    LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy((12 * contentScale).dp), contentPadding = PaddingValues((4 * contentScale).dp)) {
         items(apps, key = AppEntry::packageName) { app ->
-            val shape = RoundedCornerShape(6.dp)
+            val shape = RoundedCornerShape((6 * contentScale).dp)
             Surface(
-                onClick = { onLaunch(app.packageName) },
-                modifier = Modifier.width(height * 1.75f).height(height),
+                onClick = { if (interactive) onLaunch(app.packageName) },
+                modifier = Modifier.width(height * 1.75f).height(height).focusProperties { canFocus = interactive },
                 shape = ClickableSurfaceDefaults.shape(shape),
                 colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF202026), focusedContainerColor = Color(0xFF202026)),
                 border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f)
             ) {
-                Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    InstalledAppArtwork(app, Modifier.weight(1f).fillMaxWidth())
-                    Text(app.label, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.fillMaxSize().padding((8 * contentScale).dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    InstalledAppArtwork(app, Modifier.weight(1f).fillMaxWidth(), contentScale)
+                    Text(app.label, color = Color.White, fontSize = (13 * contentScale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }

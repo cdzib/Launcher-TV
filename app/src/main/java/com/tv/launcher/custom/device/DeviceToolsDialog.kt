@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.tv.material3.Button
+import com.tv.launcher.custom.core.ui.components.SettingsContentButton as Button
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.model.apps.AppEntry
@@ -59,7 +59,8 @@ private data class PendingDeviceOperation(
 @Composable
 fun DeviceToolsDialog(
     apps: List<AppEntry>,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    embedded: Boolean = false
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -110,10 +111,7 @@ fun DeviceToolsDialog(
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
-    ) {
+    val toolsContent: @Composable () -> Unit = {
         DeviceToolsPanel(
             apps = apps,
             shizukuAvailable = shizukuAvailable,
@@ -217,9 +215,15 @@ fun DeviceToolsDialog(
             onCopyAdbRestoreInstruction = { packageName ->
                 copyAdbText(context, buildAdbRestoreInstruction(packageName, protectedDevicePackages, context.packageName))
             },
-            onDismiss = onDismiss
+            onDismiss = onDismiss,
+            embedded = embedded
         )
     }
+    if (embedded) toolsContent() else Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        content = toolsContent
+    )
 
     pendingDeviceOperation?.let { pending ->
         DeviceOperationConfirmationDialog(
@@ -297,11 +301,16 @@ private fun DeviceToolsPanel(
     onRestoreSystemApp: (String) -> Unit,
     onCopyAdbInstructions: (String?) -> Unit,
     onCopyAdbRestoreInstruction: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    embedded: Boolean = false
 ) {
-    Surface(Modifier.fillMaxSize(), shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)) {
+    Surface(Modifier.fillMaxSize(), shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = androidx.tv.material3.SurfaceDefaults.colors(
+            containerColor = com.tv.launcher.custom.core.ui.components.SettingsColors.background,
+            contentColor = com.tv.launcher.custom.core.ui.components.SettingsColors.text
+        )) {
         Column(
-            Modifier.fillMaxSize().background(Color(0xFF101318)).padding(24.dp),
+            Modifier.fillMaxSize().background(com.tv.launcher.custom.core.ui.components.SettingsColors.background).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -309,7 +318,7 @@ private fun DeviceToolsPanel(
                     Text(stringResource(R.string.device_tools_title), fontSize = 26.sp)
                     Text(stringResource(R.string.device_tools_description), fontSize = 14.sp)
                 }
-                Button(onClick = onDismiss) { Text(stringResource(R.string.close)) }
+                if (!embedded) Button(onClick = onDismiss) { Text(stringResource(R.string.close)) }
             }
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(

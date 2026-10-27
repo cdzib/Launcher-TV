@@ -29,9 +29,9 @@ import androidx.compose.ui.unit.dp
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.model.apps.AppEntry
-import com.tv.launcher.custom.core.theme.layout.*
-import com.tv.launcher.custom.core.ui.components.*
 import com.tv.launcher.custom.core.theme.CompositionCanvas
+import com.tv.launcher.custom.core.theme.defaultCompositionFor
+import com.tv.launcher.custom.core.ui.components.*
 import com.tv.launcher.custom.core.model.theme.*
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.Dispatchers
@@ -70,24 +70,11 @@ internal fun SettingsThemePreview(
                 ) {
                     Box(Modifier.fillMaxSize().background(LocalLauncherStyle.current.palette.background)) {
                         SettingsBackgroundImage(appearance.backgroundImageUri, Modifier.fillMaxSize())
-                        if (composition != null) {
-                            CompositionCanvas(
-                                composition, previewData, Modifier.fillMaxSize(), name,
-                                interactive = false, transparentBackground = true
-                            )
-                        } else {
-                            val focus = remember { FocusRequester() }
-                            when (appearance.themeId) {
-                                ThemeId.WEBOS -> WebOsLayout(apps, focus, {}, {})
-                                ThemeId.FIRE_TV -> TopNavLayout(apps, focus, {}, {})
-                                ThemeId.ROKU -> SideGridLayout(apps, focus, {}, {})
-                                ThemeId.TIZEN -> TizenLayout(apps, focus, {}, {})
-                                ThemeId.ANDROID_TV -> AndroidTvLayout(apps, focus, {}, {})
-                                ThemeId.GOOGLE_TV -> GoogleTvLayout(apps, focus, {}, {})
-                                ThemeId.APPLE_TV -> AppleTvLayout(apps, focus, {}, {})
-                                ThemeId.FREE_MY_TV -> FreeMyTvLayout(apps, apps.firstOrNull(), focus, {}, {})
-                            }
-                        }
+                        CompositionCanvas(
+                            composition ?: defaultCompositionFor(appearance.themeId),
+                            previewData, Modifier.fillMaxSize(), name,
+                            interactive = false, transparentBackground = true
+                        )
                     }
                 }
             }

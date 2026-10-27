@@ -6,6 +6,7 @@ import com.tv.launcher.custom.core.model.theme.ThemeBlock
 
 /** Render input; the theme renderer never queries packages, repositories or navigation hosts. */
 interface CanvasData {
+    fun installedApps(): List<com.tv.launcher.custom.core.model.apps.AppEntry> = emptyList()
     fun itemCount(block: ThemeBlock): Int
     fun label(block: ThemeBlock, index: Int): String
     @Composable fun Icon(block: ThemeBlock, index: Int, modifier: Modifier)

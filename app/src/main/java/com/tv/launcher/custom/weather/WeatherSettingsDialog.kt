@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.tv.material3.Button
+import com.tv.launcher.custom.core.ui.components.SettingsContentButton as Button
 import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.model.weather.WeatherUnit
@@ -47,13 +47,18 @@ fun WeatherSettingsDialog(
 }
 
 @Composable
-private fun WeatherSettingsContent(
+internal fun WeatherSettingsContent(
     state: WeatherUiState,
     onIntent: (HomeIntent) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    embedded: Boolean = false
 ) {
     val context = LocalContext.current
-    Surface(Modifier.fillMaxWidth().heightIn(max = 680.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)) {
+    Surface(Modifier.fillMaxWidth().heightIn(max = 680.dp), shape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp),
+        colors = androidx.tv.material3.SurfaceDefaults.colors(
+            containerColor = com.tv.launcher.custom.core.ui.components.SettingsColors.background,
+            contentColor = com.tv.launcher.custom.core.ui.components.SettingsColors.text
+        )) {
         Column(
             Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -66,10 +71,12 @@ private fun WeatherSettingsContent(
                     value = state.cityQuery,
                     onValueChange = { onIntent(HomeIntent.UpdateWeatherCityQuery(it)) },
                     modifier = Modifier.weight(1f).heightIn(min = 56.dp)
-                        .background(Color(0xFFE7E9EE), RoundedCornerShape(8.dp)).padding(horizontal = 16.dp, vertical = 18.dp),
+                        .background(com.tv.launcher.custom.core.ui.components.SettingsColors.surface, RoundedCornerShape(8.dp)).padding(horizontal = 16.dp, vertical = 18.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(color = com.tv.launcher.custom.core.ui.components.SettingsColors.text, fontSize = 16.sp),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(com.tv.launcher.custom.core.ui.components.SettingsColors.accent),
                     singleLine = true,
                     decorationBox = { innerTextField ->
-                        if (state.cityQuery.isEmpty()) Text(stringResource(R.string.weather_search_hint), color = Color.DarkGray)
+                        if (state.cityQuery.isEmpty()) Text(stringResource(R.string.weather_search_hint), color = com.tv.launcher.custom.core.ui.components.SettingsColors.muted)
                         innerTextField()
                     }
                 )
@@ -119,7 +126,7 @@ private fun WeatherSettingsContent(
             Button(onClick = { openWeatherAttribution(context) }) {
                 Text(stringResource(R.string.weather_attribution), fontSize = 12.sp)
             }
-            Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.close)) }
+            if (!embedded) Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.close)) }
         }
     }
 }

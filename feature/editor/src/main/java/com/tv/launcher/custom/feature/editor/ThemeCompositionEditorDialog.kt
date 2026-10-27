@@ -102,6 +102,7 @@ fun ThemeCompositionEditorDialog(
     onImportAssets: () -> Unit = {},
     isEditing: Boolean = false,
     isSaving: Boolean = false,
+    useDialog: Boolean = true,
     onSave: () -> Unit,
     onCancel: () -> Unit
 ) {
@@ -114,7 +115,7 @@ fun ThemeCompositionEditorDialog(
             if (hasChanges) showDiscard = true else onCancel()
         }
     }
-    Dialog(onDismissRequest = requestClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+    val editorContent: @Composable () -> Unit = {
         CompositionLocalProvider(androidx.tv.material3.LocalContentColor provides SettingsColors.text) {
             ThemeEditorContent(name, onNameChange, composition, onCompositionChange, previewData,
                 availableAssetPaths, onImportAssets,
@@ -127,6 +128,12 @@ fun ThemeCompositionEditorDialog(
                 onConfirm = { showDiscard = false; onCancel() }
             )
         }
+    }
+    if (useDialog) {
+        Dialog(onDismissRequest = requestClose, properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false), content = editorContent)
+    } else {
+        androidx.activity.compose.BackHandler(onBack = requestClose)
+        editorContent()
     }
 }
 
@@ -141,6 +148,9 @@ internal fun GlobalInspector(composition: ThemeComposition, onChange: (ThemeComp
     if (style != BgStyle.SOLID) ColorRow("Segundo color", composition.bgColor2) { onChange(composition.copy(bgColor2 = it)) }
     Stepper("Espacio entre secciones", composition.spacing ?: 16, 0, 64, 2, "dp") { onChange(composition.copy(spacing = it)) }
     Stepper("Margen general", composition.padding ?: 24, 0, 96, 4, "dp") { onChange(composition.copy(padding = it)) }
+    composition.topPadding?.let { value ->
+        Stepper(stringResource(R.string.editor_block_top_inset), value, 0, 96, 4, "dp") { onChange(composition.copy(topPadding = it)) }
+    }
 }
 
 @Composable
@@ -178,6 +188,7 @@ internal fun RailInspector(composition: ThemeComposition, onChange: (ThemeCompos
     fun up(t: (RailConfig) -> RailConfig) = onChange(composition.copy(rail = t(cfg)))
     SettingsButton(stringResource(R.string.editor_remove_rail), onClick = { onChange(composition.copy(rail = null)) })
     Picker("Estilo", RAIL_STYLES, cfg.style) { v -> up { it.copy(style = v) } }
+    Picker(stringResource(R.string.editor_overlay_navigation), YESNO, cfg.overlay) { v -> up { it.copy(overlay = v) } }
     Field("Opciones (coma). La primera es la activa", cfg.items.orEmpty(), "Inicio,Buscar,Apps", 120) { v -> up { it.copy(items = v) } }
     Stepper("Ancho", cfg.width ?: if (cfg.style == RailStyle.ICONS) 72 else 220, 56, 360, 8, "dp") { v -> up { it.copy(width = v) } }
     Picker("Flotante (con margen)", YESNO, cfg.floating) { v -> up { it.copy(floating = v) } }
@@ -220,8 +231,26 @@ internal fun BlockInspector(
                 onSelect((index - 1).coerceAtLeast(0))
         }
     }
-    SettingsButton(stringResource(R.string.editor_reset_section), icon = Icons.Default.RestartAlt, onClick = { update { type.defaultBlock() } })
+    SettingsButton(stringResource(R.string.editor_reset_section), icon = Icons.Default.RestartAlt, onClick = {
+        update { type.defaultBlock().copy(appContent = block.appContent, startInset = block.startInset, endInset = block.endInset) }
+    })
     Picker("Ubicación del bloque", PLACEMENTS, block.placement) { v -> update { it.copy(placement = v) } }
+
+    if (block.appContent != null) {
+        Text(stringResource(R.string.editor_dynamic_apps_hint), color = SettingsColors.muted)
+        if (block.appContent != AppContent.SHORTCUT_EDITOR) {
+            Stepper(stringResource(R.string.editor_block_height), block.rItemH(), 28, 400, 4, "dp") { value ->
+                update { it.copy(itemHeight = value) }
+            }
+        }
+        Stepper(stringResource(R.string.editor_block_start_inset), block.startInset ?: 0, 0, 360, 4, "dp") { value ->
+            update { it.copy(startInset = value) }
+        }
+        Stepper(stringResource(R.string.editor_block_end_inset), block.endInset ?: 0, 0, 360, 4, "dp") { value ->
+            update { it.copy(endInset = value) }
+        }
+        return
+    }
 
     when (type) {
         ThemeBlockType.TITLE -> {
@@ -472,6 +501,7 @@ internal fun ThemeBlockType.defaultBlock(): ThemeBlock = when (this) {
     ThemeBlockType.CHIPS_ROW -> ThemeBlock(this, text = "Juegos,Música,Deportes,Hogar", multicolor = true)
     ThemeBlockType.RECENTS_ROW -> ThemeBlock(this, text = "Recientes", maxItems = 5)
     ThemeBlockType.MEDIA_ROW -> ThemeBlock(this, text = "Contenido", maxItems = 8)
+    ThemeBlockType.NAV_ROW -> ThemeBlock(this, text = "Inicio,Buscar,Apps", showSystemSettings = true, showPersonalization = true)
 }
 
 @Composable
@@ -485,4 +515,5 @@ internal fun ThemeBlockType.label(): String = when (this) {
     ThemeBlockType.CHIPS_ROW -> "Categorías"
     ThemeBlockType.RECENTS_ROW -> "Recientes"
     ThemeBlockType.MEDIA_ROW -> stringResource(R.string.custom_layout_media_row)
+    ThemeBlockType.NAV_ROW -> "Navegación"
 }

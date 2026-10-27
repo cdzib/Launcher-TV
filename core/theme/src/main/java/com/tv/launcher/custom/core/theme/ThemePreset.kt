@@ -5,73 +5,123 @@ import com.tv.launcher.custom.core.model.theme.ThemeBlockType as T
 
 data class ThemePreset(val name: String, val composition: ThemeComposition)
 
+/**
+ * Declarative themes rendered by CompositionCanvas and exportable as ZIP.
+ * They mirror the native layouts; native layouts remain the reference until parity is validated.
+ */
 object ThemePresets {
     private fun c(v: Long) = v.toInt()
 
     private val androidTv = ThemePreset("Android TV", ThemeComposition(
-        bgStyle = BgStyle.DIAGONAL, bgColor = c(0xFF0B1426), bgColor2 = c(0xFF1B2A4A), padding = 32, spacing = 14,
-        topBar = TopBarConfig(style = TopBarStyle.TABS_TEXT, tabs = "Inicio,Descubrir,Apps"),
+        padding = 40, spacing = 12,
+        topBar = TopBarConfig(
+            style = TopBarStyle.TABS_TEXT, tabs = "Inicio,Buscar,Apps", logo = "Android TV",
+            showSearch = false, showSettings = true, showClock = true
+        ),
         blocks = listOf(
-            ThemeBlock(T.HERO, text = "Destacado", subtitle = "Contenido recomendado para ti", itemHeight = 170),
-            ThemeBlock(T.FAVORITES_ROW, text = "Apps favoritas", maxItems = 7, itemHeight = 64, cardStyle = CardStyle.LIGHT, textSize = 14),
-            ThemeBlock(T.RECENTS_ROW, text = "Continuar", maxItems = 5, itemHeight = 100, textSize = 14)
+            ThemeBlock(T.HERO, appContent = AppContent.FEATURED_APP, itemHeight = 200),
+            ThemeBlock(T.TITLE, text = "Tus apps", textSize = 14),
+            ThemeBlock(T.APPS_ROW, maxItems = 14, itemHeight = 65, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.BELOW, cornerRadius = 6),
+            ThemeBlock(T.TITLE, text = "Apps para ti", textSize = 13),
+            ThemeBlock(T.APPS_ROW, maxItems = 12, itemHeight = 124, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.NONE, cornerRadius = 6)
         )))
 
     private val googleTv = ThemePreset("Google TV", ThemeComposition(
-        bgStyle = BgStyle.VERTICAL, bgColor = c(0xFF101820), bgColor2 = c(0xFF1C2A38), padding = 32, spacing = 14,
-        topBar = TopBarConfig(style = TopBarStyle.TABS_PILL, tabs = "Para ti,Películas,Series,Apps,Biblioteca", logo = "Google TV"),
+        padding = 40, spacing = 12,
+        topBar = TopBarConfig(
+            style = TopBarStyle.TABS_PILL, tabs = "Para ti,Películas,Series,Apps", logo = "Google TV",
+            showSearch = false, showSettings = true, showClock = true
+        ),
         blocks = listOf(
-            ThemeBlock(T.HERO, text = "Título destacado", subtitle = "Una misión que se desarrolla en tiempo real", itemHeight = 150, cornerRadius = 0),
-            ThemeBlock(T.RECENTS_ROW, text = "Recomendado para ti", maxItems = 5, itemHeight = 100, cornerRadius = 10, textSize = 14),
-            ThemeBlock(T.FAVORITES_ROW, text = "Tus apps", maxItems = 7, itemHeight = 56, cornerRadius = 10, textSize = 14)
+            ThemeBlock(T.HERO, appContent = AppContent.FEATURED_APP, itemHeight = 200),
+            ThemeBlock(T.TITLE, text = "Apps para ti", textSize = 13),
+            ThemeBlock(T.APPS_ROW, maxItems = 12, itemHeight = 108, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.NONE, cornerRadius = 8),
+            ThemeBlock(T.TITLE, text = "Tus apps", textSize = 14),
+            ThemeBlock(T.APPS_ROW, maxItems = 14, itemHeight = 60, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.BELOW, cornerRadius = 8)
         )))
 
     private val fireTv = ThemePreset("Fire TV", ThemeComposition(
-        bgStyle = BgStyle.SOLID, bgColor = c(0xFF0F1114), padding = 28, spacing = 12,
-        topBar = TopBarConfig(style = TopBarStyle.ICONS, tabs = "Inicio,Buscar,En vivo,Ajustes", showSearch = false, showSettings = false, showClock = false),
+        padding = 32, spacing = 12,
         blocks = listOf(
-            ThemeBlock(T.HERO, text = "Estreno de la semana", subtitle = "Todos los episodios disponibles", buttonText = "Más información", itemHeight = 200, cornerRadius = 6),
-            ThemeBlock(T.FAVORITES_ROW, maxItems = 6, itemHeight = 48, cardStyle = CardStyle.LIGHT, cornerRadius = 4),
-            ThemeBlock(T.APPS_GRID, maxItems = 10, columns = 5, itemHeight = 84, aspect = CardAspect.WIDE, cornerRadius = 6, labelPos = LabelPos.NONE, spacing = 10)
+            ThemeBlock(T.HERO, appContent = AppContent.FEATURED_APP, itemHeight = 216),
+            ThemeBlock(T.NAV_ROW, text = "Inicio,Buscar,Apps", showSystemSettings = true,
+                showPersonalization = true, spacing = 12),
+            ThemeBlock(T.TITLE, text = "Tus apps", textSize = 13),
+            ThemeBlock(T.APPS_ROW, maxItems = 8, itemHeight = 92, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.NONE, cornerRadius = 10),
+            ThemeBlock(T.APPS_ROW, maxItems = 8, itemHeight = 92, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.NONE, cornerRadius = 10, itemOffset = 8)
         )))
 
     private val roku = ThemePreset("Roku", ThemeComposition(
-        bgStyle = BgStyle.DIAGONAL, bgColor = c(0xFF6A1B9A), bgColor2 = c(0xFF2A0B4A), padding = 24, spacing = 10,
-        topBar = TopBarConfig(style = TopBarStyle.MINIMAL, logo = "Roku", showSearch = false, showSettings = false),
-        rail = RailConfig(style = RailStyle.LIST, items = "Inicio,Destacados,Mi feed,Buscar,Canales,Ajustes", width = 230, textSize = 16),
+        padding = 48, spacing = 12,
+        rail = RailConfig(
+            style = RailStyle.LIST, items = "Inicio,Apps,Buscar,Ajustes,Personalización",
+            logo = "Roku", width = 326, cornerRadius = 2, textSize = 18
+        ),
         blocks = listOf(
-            ThemeBlock(T.APPS_GRID, maxItems = 9, columns = 3, itemHeight = 84, aspect = CardAspect.WIDE, cornerRadius = 4, labelPos = LabelPos.NONE, spacing = 8)
+            ThemeBlock(T.APPS_GRID, maxItems = 18, columns = 3, aspect = CardAspect.CLASSIC,
+                cornerRadius = 2, labelPos = LabelPos.BELOW, spacing = 12)
         )))
 
     private val tizen = ThemePreset("Tizen", ThemeComposition(
-        bgStyle = BgStyle.VERTICAL, bgColor = c(0xFF0A1A1F), bgColor2 = c(0xFF000000), padding = 28, spacing = 14,
-        topBar = TopBarConfig(style = TopBarStyle.TABS_PILL, tabs = "Para ti,En vivo,Apps", align = BlockAlign.CENTER, showSearch = false, showSettings = false, showClock = false),
-        rail = RailConfig(style = RailStyle.ICONS, items = "Perfil,Buscar,Inicio,Juegos,Ajustes", width = 72),
+        padding = 16, spacing = 8,
+        rail = RailConfig(
+            style = RailStyle.ICONS, items = "Inicio,Buscar,Apps", width = 56,
+            circular = true, bottomItems = ""
+        ),
         blocks = listOf(
-            ThemeBlock(T.HERO, text = "Ahora en streaming", subtitle = "Nueva temporada", itemHeight = 150, cornerRadius = 16),
-            ThemeBlock(T.RECENTS_ROW, text = "Reciente", maxItems = 4, itemHeight = 76, textSize = 14),
-            ThemeBlock(T.FAVORITES_ROW, text = "Tus apps", maxItems = 9, itemHeight = 48, aspect = CardAspect.SQUARE, textSize = 14)
+            ThemeBlock(T.HERO, appContent = AppContent.FEATURED_APP, itemHeight = 248),
+            ThemeBlock(T.NAV_ROW, text = "Inicio,Apps", align = BlockAlign.CENTER, spacing = 24),
+            ThemeBlock(T.TITLE, text = "Apps para ti", textSize = 13),
+            ThemeBlock(T.APPS_ROW, maxItems = 12, itemHeight = 92, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.NONE, cornerRadius = 8),
+            ThemeBlock(T.APPS_ROW, maxItems = 20, itemHeight = 54, aspect = CardAspect.SQUARE,
+                labelPos = LabelPos.NONE, cornerRadius = 6, spacing = 8)
         )))
 
     private val webOs = ThemePreset("webOS", ThemeComposition(
-        bgStyle = BgStyle.SOLID, bgColor = c(0xFF050505), padding = 24, spacing = 12,
-        rail = RailConfig(style = RailStyle.ICONS, items = "Perfil,Notificaciones,Ajustes,Buscar", width = 64),
+        padding = 8, topPadding = 24, spacing = 12,
+        rail = RailConfig(style = RailStyle.ICONS, items = "Inicio,Buscar,Apps,Ajustes,Personalización", width = 56, overlay = true),
         blocks = listOf(
-            ThemeBlock(T.HERO, text = "Estreno", subtitle = "Disponible ahora", itemHeight = 170, cornerRadius = 8),
-            ThemeBlock(T.CHIPS_ROW, text = "Oficina,Juegos,Música,Hogar,Deportes", multicolor = true, itemHeight = 40, cornerRadius = 6),
-            ThemeBlock(T.FAVORITES_ROW, maxItems = 12, itemHeight = 52, aspect = CardAspect.SQUARE, spacing = 10, cornerRadius = 8),
-            ThemeBlock(T.RECENTS_ROW, text = "Recomendados", maxItems = 5, itemHeight = 92, cornerRadius = 4, textSize = 14)
+            ThemeBlock(T.HERO, itemHeight = 189, appContent = AppContent.FEATURED_APP, startInset = 48, endInset = 12),
+            ThemeBlock(T.CHIPS_ROW, itemHeight = 46, appContent = AppContent.SHORTCUTS),
+            ThemeBlock(T.FAVORITES_ROW, maxItems = 20, itemHeight = 51, appContent = AppContent.APP_ICONS),
+            ThemeBlock(T.TITLE, text = "Tus apps", appContent = AppContent.SHORTCUT_EDITOR),
+            ThemeBlock(T.APPS_ROW, maxItems = 20, itemHeight = 86, appContent = AppContent.APP_CARDS)
         )))
 
     private val tvOs = ThemePreset("Apple tvOS", ThemeComposition(
-        bgStyle = BgStyle.VERTICAL, bgColor = c(0xFF3A1F0B), bgColor2 = c(0xFF0A0A0A), padding = 24, spacing = 16,
+        padding = 16, spacing = 12,
         rail = RailConfig(
-            style = RailStyle.ICONS_LABELS, items = "Inicio,Buscar,Apple TV+,Deportes,Tienda,Biblioteca",
-            width = 210, floating = true, cornerRadius = 28, showProfile = true, bgColor = c(0xFF000000), bgAlpha = 35
+            style = RailStyle.ICONS_LABELS, items = "Inicio,Buscar,Apps,Ajustes,Personalización",
+            logo = "TV", width = 184, floating = true, cornerRadius = 20, textSize = 15,
+            bgColor = c(0xFF2A211C), bgAlpha = 90, appShortcutCount = 3
         ),
         blocks = listOf(
-            ThemeBlock(T.HERO, text = "Show destacado", subtitle = "Disponible en Apple TV+", itemHeight = 210, cornerRadius = 0),
-            ThemeBlock(T.RECENTS_ROW, text = "Siguiente", maxItems = 5, itemHeight = 96, cornerRadius = 10, textSize = 14, focusScale = 108)
+            ThemeBlock(T.HERO, appContent = AppContent.FEATURED_APP, itemHeight = 378),
+            ThemeBlock(T.TITLE, text = "Tus apps", textSize = 13, placement = BlockPlacement.BOTTOM),
+            ThemeBlock(T.APPS_ROW, maxItems = 12, itemHeight = 102, aspect = CardAspect.WIDE,
+                labelPos = LabelPos.NONE, cornerRadius = 6, placement = BlockPlacement.BOTTOM)
+        )))
+
+    private val freeMyTv = ThemePreset("Free My TV", ThemeComposition(
+        padding = 28, spacing = 12,
+        topBar = TopBarConfig(
+            style = TopBarStyle.MINIMAL, tabs = "", logo = "Free My TV",
+            showSearch = false, showSettings = true, showClock = true
+        ),
+        blocks = listOf(
+            ThemeBlock(T.NAV_ROW, text = "Inicio,Buscar,Apps", spacing = 12),
+            ThemeBlock(T.HERO, text = "DESTACADO", subtitle = "Todo lo que te gusta, en tu pantalla",
+                textSize = 34, itemHeight = 180, bgAlpha = 0, padding = 12),
+            ThemeBlock(T.TITLE, text = "Favoritos", textSize = 14),
+            ThemeBlock(T.FAVORITES_ROW, maxItems = 8, itemHeight = 60, aspect = CardAspect.SQUARE,
+                appContent = AppContent.APP_ICON_ROW, labelPos = LabelPos.BELOW, cornerRadius = 12)
         )))
 
     private val minimal = ThemePreset("Minimalista", ThemeComposition(
@@ -100,5 +150,25 @@ object ThemePresets {
         )))
 
     val all: List<ThemePreset> get() =
-        listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, minimal, minimalClock, cleanGrid)
+        listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, freeMyTv, minimal, minimalClock, cleanGrid)
+
+    fun byName(name: String): ThemeComposition? = all.firstOrNull { it.name == name }?.composition
 }
+
+/**
+ * Composición declarativa que corresponde a cada layout. Se usa cuando un tema instalado
+ * no trae `composition` (paquetes v1) y para el tema inicial de una instalación nueva.
+ */
+fun defaultCompositionFor(themeId: ThemeId): ThemeComposition =
+    ThemePresets.byName(
+        when (themeId) {
+            ThemeId.WEBOS -> "webOS"
+            ThemeId.FIRE_TV -> "Fire TV"
+            ThemeId.ROKU -> "Roku"
+            ThemeId.TIZEN -> "Tizen"
+            ThemeId.ANDROID_TV -> "Android TV"
+            ThemeId.GOOGLE_TV -> "Google TV"
+            ThemeId.APPLE_TV -> "Apple tvOS"
+            ThemeId.FREE_MY_TV -> "Free My TV"
+        }
+    ) ?: ThemePresets.all.first().composition

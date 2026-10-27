@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -25,6 +26,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -45,6 +47,11 @@ import com.tv.launcher.custom.core.ui.components.*
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,9 +60,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.Button
@@ -66,6 +75,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.toStyle
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 import com.tv.launcher.custom.feature.settings.LauncherSettingsDialog
 import com.tv.launcher.custom.feature.home.presentation.state.HomeEffect
@@ -81,7 +91,23 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.launch
 import java.io.InputStream
 import kotlinx.collections.immutable.persistentListOf
-
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 private const val MAX_BACKGROUND_IMAGE_SIDE = 1920
 
 private data class PendingThemeImport(
@@ -164,7 +190,9 @@ fun LauncherScreen(
     var showLauncherSettings by remember { mutableStateOf(false) }
     var showDeviceTools by remember { mutableStateOf(false) }
     var showWeatherSettings by remember { mutableStateOf(false) }
-    var section by rememberSaveable { mutableStateOf(LauncherSection.HOME) }
+    // Section is transient navigation state: restoring SEARCH from a saved composition can
+    // make a freshly launched launcher appear to start in the wrong destination.
+    var section by remember { mutableStateOf(LauncherSection.HOME) }
     val sectionStateHolder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     var pendingTheme by remember { mutableStateOf<PendingThemeImport?>(null) }
     var showBundledThemePicker by remember { mutableStateOf(false) }
@@ -175,6 +203,7 @@ fun LauncherScreen(
     var isRemoteLoading by remember { mutableStateOf(false) }
     var remoteErrorMessage by remember { mutableStateOf<String?>(null) }
     var showCompositionEditor by remember { mutableStateOf(false) }
+    var editorBaseBackgroundAsset by remember { mutableStateOf<ByteArray?>(null) }
     var isSavingComposition by remember { mutableStateOf(false) }
     var editingThemeId by remember { mutableStateOf<String?>(null) }
     var editingThemeAppearance by remember { mutableStateOf<LauncherAppearance?>(null) }
@@ -249,13 +278,31 @@ fun LauncherScreen(
         val themeId = appearance?.installedThemeId
         val active = if (themeId == null) null else withContext(Dispatchers.IO) { installedThemeStore.load(themeId) }
         activeComposition = active?.composition
-        activeCompositionName = active?.name.orEmpty()
+            ?: appearance?.themeId?.let { com.tv.launcher.custom.core.theme.defaultCompositionFor(it) }
+        activeCompositionName = active?.name ?: appearance?.themeId?.let { context.getString(it.toStyle().nameRes) }.orEmpty()
         activeThemeAssetUris = active?.assetUris.orEmpty()
     }
+    // Primera instalación: deja un tema editable aplicado para que Inicio nunca quede vacío.
+    LaunchedEffect(Unit) {
+        val hadThemes = withContext(Dispatchers.IO) { installedThemeStore.list().isNotEmpty() }
+        if (hadThemes) return@LaunchedEffect
+        val installed = withContext(Dispatchers.IO) {
+            val bytes = context.assets.open("demo-themes/webos-editable.zip").use { it.readBounded(20 * 1024 * 1024) }
+            installedThemeStore.initializeDefaultTheme(bytes)
+            installedThemeStore.list().firstOrNull()
+        }
+        if (installed != null && appearance?.installedThemeId == null) {
+            onIntent(HomeIntent.ApplyImportedTheme(installed.appearance))
+        }
+        themeLibraryRefresh++
+    }
+    LaunchedEffect(appearance?.themeId, appearance?.installedThemeId) {
+        section = LauncherSection.HOME
+    }
     LaunchedEffect(showLauncherSettings, themeLibraryRefresh) {
-        if (showLauncherSettings) {
+        if (showLauncherSettings && !showCompositionEditor) {
             installedThemes = withContext(Dispatchers.IO) {
-                val defaultThemePackage = context.assets.open("demo-themes/webos-demo.zip").use {
+                val defaultThemePackage = context.assets.open("demo-themes/webos-editable.zip").use {
                     it.readBounded(20 * 1024 * 1024)
                 }
                 installedThemeStore.initializeDefaultTheme(defaultThemePackage)
@@ -370,7 +417,7 @@ fun LauncherScreen(
             )
           ) {
             when (state) {
-                is HomeUiState.Loading -> CenteredMessage(stringResource(R.string.loading))
+                is HomeUiState.Loading -> LauncherLoadingSplash()
                 is HomeUiState.Empty -> CenteredMessage(stringResource(R.string.empty_apps))
                 is HomeUiState.Error -> CenteredMessage(
                     message = stringResource(R.string.error_load),
@@ -435,16 +482,8 @@ fun LauncherScreen(
                    modifier = Modifier.align(Alignment.TopStart).padding(24.dp)
                )
            }
-           if (state !is HomeUiState.Success) {
-              Button(
-                  onClick = { showLauncherSettings = true },
-                  modifier = Modifier.align(Alignment.TopEnd).padding(24.dp)
-              ) {
-                  Text(stringResource(R.string.launcher_settings))
-              }
-          }
         }
-        if (showLauncherSettings) {
+        if (showLauncherSettings && !showCompositionEditor) {
             LauncherSettingsDialog(
                 appearance = appearance ?: LauncherAppearance(state.themeId),
                 onIntent = { action ->
@@ -472,16 +511,13 @@ fun LauncherScreen(
                 onOpenOnlineThemes = { showRemoteThemes = true },
                 onCreateCustomTheme = {
                     editingThemeId = null
-                    editingThemeAppearance = null
+                    editingThemeAppearance = LauncherAppearance(state.themeId)
                     editingThemeVersion = null
                     editorAssetBytes = emptyMap()
+                    editorBaseBackgroundAsset = null
                     editorAssetUris = emptyMap()
-                    compositionName = "Mi inicio"
-                    editedComposition = ThemeComposition(listOf(
-                        ThemeBlock(ThemeBlockType.TITLE),
-                        ThemeBlock(ThemeBlockType.FAVORITES_ROW, maxItems = 5),
-                        ThemeBlock(ThemeBlockType.APPS_GRID, maxItems = 12, columns = 4)
-                    ))
+                    compositionName = context.getString(R.string.editor_new_theme)
+                    editedComposition = ThemeComposition(emptyList())
                     showCompositionEditor = true
                 },
                 installedThemes = installedThemes,
@@ -489,24 +525,31 @@ fun LauncherScreen(
                 previewData = compositionPreviewData,
                 onOpenDeviceTools = { showLauncherSettings = false; showDeviceTools = true },
                 onOpenWeatherSettings = { showLauncherSettings = false; showWeatherSettings = true },
+                weatherContent = {
+                    com.tv.launcher.custom.weather.WeatherSettingsContent(
+                        state = weatherState, onIntent = onIntent, onDismiss = {}, embedded = true
+                    )
+                },
+                deviceToolsContent = {
+                    DeviceToolsDialog(apps = successState?.apps?.toList().orEmpty(), onDismiss = {}, embedded = true)
+                },
                 onEditInstalledTheme = { themeId ->
                     coroutineScope.launch {
                         val installed = withContext(Dispatchers.IO) { installedThemeStore.load(themeId) }
                         val archiveBytes = withContext(Dispatchers.IO) { installedThemeStore.archiveBytes(themeId) }
-                        if (installed != null && archiveBytes != null) {
-                            editingThemeId = themeId
+                         if (installed != null && archiveBytes != null && installed.composition != null) {
+                             editingThemeId = themeId
+                             editorBaseBackgroundAsset = null
                             editingThemeAppearance = installed.appearance
                             editingThemeVersion = installed.version
                             compositionName = installed.name
-                             editedComposition = installed.composition ?: ThemeComposition(listOf(
-                                ThemeBlock(ThemeBlockType.TITLE),
-                                ThemeBlock(ThemeBlockType.APPS_ROW, maxItems = 8)
-                             ))
+                              editedComposition = requireNotNull(installed.composition)
                              editorAssetBytes = ThemeArchiveReader.read(archiveBytes).assets
                              editorAssetUris = installed.assetUris
                             showCompositionEditor = true
                         } else {
-                            Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
+                             Toast.makeText(context, if (installed != null && installed.composition == null)
+                                 R.string.editor_native_theme_base else R.string.theme_import_failed, Toast.LENGTH_LONG).show()
                         }
                     }
                 },
@@ -578,6 +621,7 @@ fun LauncherScreen(
                 onCompositionChange = { if (!isSavingComposition) editedComposition = it },
                 isEditing = editingThemeId != null,
                 isSaving = isSavingComposition,
+                useDialog = false,
                 onSave = saveTheme@{
                     if (isSavingComposition || compositionName.isBlank()) return@saveTheme
                     isSavingComposition = true
@@ -601,7 +645,7 @@ fun LauncherScreen(
                                     (existingManifest.background as? ThemeManifestBackground.Asset)?.let { background ->
                                         parsedExistingArchive.assets[background.path]
                                     }
-                                } else themeAppearance.backgroundImageUri?.let { imageUri ->
+                                 } else editorBaseBackgroundAsset ?: themeAppearance.backgroundImageUri?.let { imageUri ->
                                     withContext(Dispatchers.IO) {
                                         val bitmap = decodeSampledBitmap(context.contentResolver, Uri.parse(imageUri), MAX_BACKGROUND_IMAGE_SIDE)
                                             ?: error("Invalid background image")
@@ -633,13 +677,6 @@ fun LauncherScreen(
                                 Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
                             } else {
                                 showCompositionEditor = false
-                                val updatedThemeId = editingThemeId
-                                if (updatedThemeId == null || state.appearance.installedThemeId == updatedThemeId) {
-                                    val updated = withContext(Dispatchers.IO) {
-                                        updatedThemeId?.let(installedThemeStore::load)
-                                    }
-                                    onIntent(HomeIntent.ApplyImportedTheme(updated?.appearance ?: savedTheme.appearance))
-                                }
                                 installedThemes = withContext(Dispatchers.IO) { installedThemeStore.list() }
                                 themeLibraryRefresh++
                                 editingThemeId = null
@@ -851,17 +888,199 @@ private fun AppDrawerScreenPreview() = LauncherTheme(ThemeId.ROKU) {
 }
 
 private val BUNDLED_DEMO_THEMES = listOf(
-    "webos-demo.zip" to "webOS",
-    "fire-tv-demo.zip" to "Fire TV",
-    "roku-demo.zip" to "Roku",
-    "tizen-demo.zip" to "Tizen",
-    "android-tv-demo.zip" to "Android TV",
-    "google-tv-demo.zip" to "Google TV",
-    "apple-tv-demo.zip" to "Apple TV",
-    "free-my-tv-demo.zip" to "Free My TV",
+    "webos-editable.zip" to "webOS · Editable",
+    "android-tv-editable.zip" to "Android TV · Editable",
+    "google-tv-editable.zip" to "Google TV · Editable",
+    "fire-tv-editable.zip" to "Fire TV · Editable",
+    "roku-editable.zip" to "Roku · Editable",
+    "tizen-editable.zip" to "Tizen · Editable",
+    "apple-tv-editable.zip" to "Apple TV · Editable",
+    "free-my-tv-editable.zip" to "Free My TV · Editable",
     "launch-dock-demo.zip" to "Launch Dock",
-    "side-stream-demo.zip" to "Side Stream"
+    "side-stream-demo.zip" to "Side Stream",
+    "nova-minimal-premium.zip" to "NOVA · Minimal Premium"
 )
+
+@Composable
+private fun LauncherLoadingSplash() {
+    val palette = LocalLauncherStyle.current.palette
+
+    val transition = rememberInfiniteTransition(
+        label = "launcher-splash"
+    )
+
+    val progressPosition by transition.animateFloat(
+        initialValue = -0.35f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1800,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "progress-position"
+    )
+
+    val glowAlpha by transition.animateFloat(
+        initialValue = 0.06f,
+        targetValue = 0.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 2400,
+                easing = FastOutSlowInEasing
+            ),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "background-glow"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(palette.background),
+        contentAlignment = Alignment.Center
+    ) {
+        // Halo ambiental detrás del contenido.
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val radius = size.minDimension * 0.65f
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        palette.accent.copy(alpha = glowAlpha),
+                        Color.Transparent
+                    ),
+                    center = center,
+                    radius = radius
+                ),
+                radius = radius,
+                center = center
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 48.dp, vertical = 32.dp)
+                .widthIn(max = 560.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(104.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                palette.accent.copy(alpha = 0.20f),
+                                palette.accent.copy(alpha = 0.05f)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = palette.accent.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(30.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                // Símbolo de TV sin dependencia de Material Icons.
+                Canvas(modifier = Modifier.size(52.dp)) {
+                    val stroke = 2.5.dp.toPx()
+                    val screenHeight = size.height * 0.65f
+                    val screenTop = size.height * 0.10f
+                    val screenBottom = screenTop + screenHeight
+
+                    drawRoundRect(
+                        color = palette.accent,
+                        topLeft = Offset(0f, screenTop),
+                        size = Size(size.width, screenHeight),
+                        cornerRadius = CornerRadius(6.dp.toPx()),
+                        style = Stroke(width = stroke)
+                    )
+
+                    drawLine(
+                        color = palette.accent,
+                        start = Offset(size.width / 2f, screenBottom),
+                        end = Offset(size.width / 2f, size.height * 0.90f),
+                        strokeWidth = stroke,
+                        cap = StrokeCap.Round
+                    )
+
+                    drawLine(
+                        color = palette.accent,
+                        start = Offset(size.width * 0.30f, size.height * 0.90f),
+                        end = Offset(size.width * 0.70f, size.height * 0.90f),
+                        strokeWidth = stroke,
+                        cap = StrokeCap.Round
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            Text(
+                text = stringResource(R.string.app_name),
+                color = palette.onBackground,
+                fontSize = 36.sp,
+                lineHeight = 44.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = stringResource(R.string.launcher_splash_message),
+                color = palette.onMuted,
+                fontSize = 18.sp,
+                lineHeight = 26.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(36.dp))
+
+            Canvas(
+                modifier = Modifier
+                    .width(260.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(50))
+                    .semantics {
+                        progressBarRangeInfo =
+                            ProgressBarRangeInfo.Indeterminate
+                    }
+            ) {
+                drawRect(
+                    color = palette.onBackground.copy(alpha = 0.10f)
+                )
+
+                val segmentWidth = size.width * 0.35f
+                val startX = progressPosition * size.width
+
+                drawRoundRect(
+                    brush = Brush.horizontalGradient(
+                        colors = listOf(
+                            palette.accent.copy(alpha = 0f),
+                            palette.accent,
+                            palette.accent.copy(alpha = 0f)
+                        ),
+                        startX = startX,
+                        endX = startX + segmentWidth
+                    ),
+                    topLeft = Offset(startX, 0f),
+                    size = Size(segmentWidth, size.height),
+                    cornerRadius = CornerRadius(size.height / 2f)
+                )
+            }
+        }
+    }
+}
+
+@Preview(name = "Launcher · Splash", widthDp = 960, heightDp = 540)
+@Composable
+private fun LauncherLoadingSplashPreview() = LauncherTheme(ThemeId.GOOGLE_TV) {
+    LauncherLoadingSplash()
+}
 
 @Composable
 private fun CenteredMessage(

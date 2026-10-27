@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -75,7 +76,6 @@ internal fun ThemeEditorContent(
     var showReset by remember { mutableStateOf(false) }
     val initialFocus = remember { FocusRequester() }
     val contentFocus = remember { FocusRequester() }
-    val templateFocus = remember { FocusRequester() }
     val categoryFocus = remember { ThemeEditorCategory.entries.associateWith { FocusRequester() } }
     val inspectorState = rememberSaveableStateHolder()
     val isPreview = LocalInspectionMode.current
@@ -94,14 +94,16 @@ internal fun ThemeEditorContent(
         previousInspectorTarget = inspectorTarget
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(SettingsColors.background), contentAlignment = Alignment.Center) {
         val compact = maxWidth < 1100.dp
         Column(
             Modifier.fillMaxSize().background(SettingsColors.background)
-                .windowInsetsPadding(WindowInsets.safeDrawing).padding(if (compact) 24.dp else 32.dp)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(if (compact) 24.dp else 32.dp)
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(stringResource(R.string.editor_breadcrumb), color = SettingsColors.muted, fontSize = 13.sp)
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         Text(stringResource(if (isEditing) R.string.edit_theme_title else R.string.editor_create_title),
                             color = SettingsColors.text, fontSize = if (compact) 24.sp else 28.sp, fontWeight = FontWeight.SemiBold)
@@ -109,15 +111,15 @@ internal fun ThemeEditorContent(
                             color = SettingsColors.muted, fontSize = 12.sp,
                             modifier = Modifier.background(SettingsColors.surface, RoundedCornerShape(24.dp)).padding(horizontal = 12.dp, vertical = 8.dp))
                     }
-                    Text(stringResource(R.string.editor_subtitle), color = SettingsColors.muted, fontSize = 14.sp)
+                    Text(stringResource(if (isEditing) R.string.editor_editing_theme else R.string.editor_creating_theme, name), color = SettingsColors.muted, fontSize = 14.sp)
                 }
-                SettingsButton(stringResource(R.string.close), icon = Icons.Default.Close, enabled = !isSaving, onClick = onRequestClose)
+                SettingsButton(stringResource(R.string.cancel), icon = Icons.Default.Close, enabled = !isSaving, onClick = onRequestClose)
             }
             Spacer(Modifier.height(16.dp))
             EditorDivider()
             Spacer(Modifier.height(16.dp))
             Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                Column(Modifier.width(if (compact) 168.dp else 184.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
+                Column(Modifier.width(if (compact) 168.dp else 208.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     ThemeEditorCategory.entries.forEachIndexed { index, item ->
                         SettingsButton(stringResource(item.label), icon = item.icon, selected = category == item,
@@ -125,7 +127,7 @@ internal fun ThemeEditorContent(
                             modifier = Modifier.fillMaxWidth()
                                 .then(if (index == 0) Modifier.focusRequester(initialFocus) else Modifier)
                                 .focusRequester(categoryFocus.getValue(item)).focusProperties {
-                                    right = if (category == ThemeEditorCategory.DESIGN) templateFocus else contentFocus
+                                     right = contentFocus
                                 },
                             enabled = !isSaving,
                             onClick = { category = item; inspectorTarget = null })
@@ -134,39 +136,61 @@ internal fun ThemeEditorContent(
                         modifier = Modifier.padding(top = 32.dp))
                 }
                 Box(Modifier.width(1.dp).fillMaxHeight().background(SettingsColors.divider))
-                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1.55f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.editor_preview_title), color = SettingsColors.text, fontSize = 18.sp)
-                        if (!compact) Text(stringResource(R.string.editor_live), color = SettingsColors.muted, fontSize = 12.sp)
+                        if (!compact) {
+                            Row(
+                                Modifier.clip(RoundedCornerShape(50)).background(SettingsColors.surface).padding(horizontal = 10.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(Modifier.size(7.dp).background(Color(0xFF7ED9A0), CircleShape))
+                                Text(stringResource(R.string.editor_live), color = SettingsColors.muted, fontSize = 12.sp)
+                            }
+                        }
+                        Spacer(Modifier.weight(1f))
                     }
-                    ThemeEditorPreview(name, composition, safeData, if (category == ThemeEditorCategory.SECTIONS) safeSelected else -1,
-                        Modifier.fillMaxWidth().aspectRatio(16f / 9f))
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        ThemeEditorPreview(name, composition, safeData, if (category == ThemeEditorCategory.SECTIONS) safeSelected else -1,
+                            Modifier.fillMaxWidth().aspectRatio(16f / 9f).then(
+                                if (compact) Modifier else Modifier.widthIn(max = 760.dp)
+                            ))
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("16:9", color = SettingsColors.muted, fontSize = 12.sp)
+                        Text(stringResource(R.string.editor_preview_footer), color = SettingsColors.muted, fontSize = 12.sp)
                         SettingsButton(stringResource(R.string.editor_expand), icon = Icons.Default.OpenInFull,
                             containerColor = Color.Transparent, onClick = { showExpandedPreview = true })
                     }
-                    EditorDivider()
-                    Text(stringResource(when (category) {
-                        ThemeEditorCategory.DESIGN -> R.string.editor_design_context
-                        ThemeEditorCategory.SECTIONS -> R.string.editor_sections_context
-                        ThemeEditorCategory.APPEARANCE -> R.string.editor_appearance_context
-                    }), color = SettingsColors.text, fontSize = 16.sp)
-                    Text(stringResource(when (category) {
-                        ThemeEditorCategory.DESIGN -> R.string.editor_design_hint
-                        ThemeEditorCategory.SECTIONS -> R.string.editor_sections_hint
-                        ThemeEditorCategory.APPEARANCE -> R.string.editor_appearance_hint
-                    }), color = SettingsColors.muted, fontSize = 12.sp)
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SettingsColors.surface).padding(16.dp),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(Icons.Default.Info, null, Modifier.size(20.dp), tint = SettingsColors.accent)
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(stringResource(when (category) {
+                                ThemeEditorCategory.DESIGN -> R.string.editor_design_context
+                                ThemeEditorCategory.SECTIONS -> R.string.editor_sections_context
+                                ThemeEditorCategory.APPEARANCE -> R.string.editor_appearance_context
+                            }), color = SettingsColors.text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                            Text(stringResource(when (category) {
+                                ThemeEditorCategory.DESIGN -> R.string.editor_design_hint
+                                ThemeEditorCategory.SECTIONS -> R.string.editor_sections_hint
+                                ThemeEditorCategory.APPEARANCE -> R.string.editor_appearance_hint
+                            }), color = SettingsColors.muted, fontSize = 12.sp)
+                        }
+                    }
                 }
-                Column(Modifier.width(if (compact) 280.dp else 336.dp).fillMaxHeight()) {
+                Column(Modifier.weight(1f).fillMaxHeight()) {
                     // Keep each category's scroll position without keeping detached focus requesters.
                     inspectorState.SaveableStateProvider("${category.name}:$inspectorTarget") {
                         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(4.dp)
                             .focusRequester(contentFocus), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             when (category) {
                                 ThemeEditorCategory.DESIGN -> {
-                                    Text(stringResource(R.string.editor_composition), color = SettingsColors.text, fontSize = 20.sp)
+                                     Text(stringResource(R.string.editor_theme_details), color = SettingsColors.text, fontSize = 20.sp)
                                     Field(stringResource(R.string.editor_theme_name), name, stringResource(R.string.custom_layout_name_hint), 40, onNameChange)
                                     Text(stringResource(R.string.editor_name_hint), color = SettingsColors.muted, fontSize = 12.sp)
                                     SettingsButton(
@@ -182,14 +206,16 @@ internal fun ThemeEditorContent(
                                             fontSize = 12.sp
                                         )
                                     }
-                                    EditorDivider()
-                                    Text(stringResource(R.string.editor_choose_template), color = SettingsColors.muted, fontSize = 14.sp)
-                                    ThemePresets.all.forEachIndexed { index, preset ->
-                                        ThemeEditorTemplate(preset, composition == preset.composition, safeData, enabled = !isSaving,
-                                            modifier = if (index == 0) Modifier.focusRequester(templateFocus) else Modifier) {
-                                            onCompositionChange(preset.composition); selected = 0
-                                        }
-                                    }
+                                     EditorDivider()
+                                      Text(stringResource(R.string.editor_composition), color = SettingsColors.text, fontSize = 20.sp)
+                                      Text(stringResource(R.string.editor_declarative_templates_hint), color = SettingsColors.muted, fontSize = 14.sp)
+                                      ThemePresets.all.forEach { preset ->
+                                          ThemeEditorTemplate(preset, composition == preset.composition, safeData, enabled = !isSaving) {
+                                              onCompositionChange(preset.composition)
+                                              selected = 0
+                                              inspectorTarget = null
+                                          }
+                                      }
                                 }
                                 ThemeEditorCategory.SECTIONS -> {
                                     if (inspectorTarget != null) {
@@ -246,7 +272,7 @@ internal fun ThemeEditorContent(
             EditorDivider()
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.settings_remote_hint), color = SettingsColors.muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.editor_footer_hint), color = SettingsColors.muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
                 SettingsButton(stringResource(R.string.editor_reset), icon = Icons.Default.RestartAlt,
                     enabled = hasChanges && !isSaving, onClick = { showReset = true })
                 if (isSaving) CircularProgressIndicator(Modifier.size(20.dp), color = SettingsColors.accent, strokeWidth = 2.dp)
@@ -302,7 +328,7 @@ private fun ThemeEditorTemplate(preset: ThemePreset, selected: Boolean, data: Ca
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ThemeEditorPreview(preset.name, preset.composition, data, -1, Modifier.width(64.dp).aspectRatio(16f / 9f))
-            Text(preset.name, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Text(preset.name, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (selected) Icon(Icons.Default.Check, null, Modifier.size(20.dp), tint = SettingsColors.accent)
         }
     }
@@ -326,6 +352,7 @@ private fun ThemeBlockType.editorIcon(): ImageVector = when (this) {
     ThemeBlockType.CHIPS_ROW -> Icons.Default.Category
     ThemeBlockType.APPS_ROW -> Icons.Default.ViewCarousel
     ThemeBlockType.MEDIA_ROW -> Icons.Default.VideoLibrary
+    ThemeBlockType.NAV_ROW -> Icons.Default.Menu
 }
 
 @Composable

@@ -9,37 +9,68 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
-import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.tv.material3.Text
-import com.tv.launcher.custom.core.model.apps.AppEntry
-import com.tv.launcher.custom.core.model.theme.ThemeId
 import com.tv.launcher.custom.core.model.theme.ThemeComposition
+import com.tv.launcher.custom.core.model.theme.ThemeId
 import com.tv.launcher.custom.core.model.theme.TopBarConfig
-import com.tv.launcher.custom.core.theme.layout.*
-import com.tv.launcher.custom.core.ui.components.*
+import com.tv.launcher.custom.core.ui.components.InstalledAppsCanvasData
+import com.tv.launcher.custom.core.ui.components.LocalLauncherSection
+import com.tv.launcher.custom.core.ui.components.LocalLauncherSectionContent
+import com.tv.launcher.custom.core.ui.components.LocalOpenApps
+import com.tv.launcher.custom.core.ui.components.LocalOpenHome
+import com.tv.launcher.custom.core.ui.components.LocalOpenSearch
+import com.tv.launcher.custom.core.ui.components.LauncherSection
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import kotlinx.collections.immutable.persistentListOf
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
-import org.junit.Assert.assertEquals
 import org.junit.runner.RunWith
 
-/** No system actions or installed applications are needed by this fixture. */
+/**
+ * El renderizado incluido es declarativo: estas pruebas usan las composiciones por layout,
+ * no layouts nativos.
+ */
 @RunWith(AndroidJUnit4::class)
 class LauncherSectionContentTest {
     @get:Rule val compose = createComposeRule()
+
+    private fun sectionData(
+        section: () -> LauncherSection,
+        onSection: (LauncherSection) -> Unit,
+        onSettings: () -> Unit,
+        onPersonalization: () -> Unit
+    ) = InstalledAppsCanvasData(
+        persistentListOf(), emptyList(), {},
+        onOpenApps = { onSection(LauncherSection.APPS) },
+        onOpenSettings = onSettings,
+        onUnavailableNavigation = {},
+        onOpenSearch = { onSection(LauncherSection.SEARCH) },
+        onOpenHome = { onSection(LauncherSection.HOME) },
+        onOpenPersonalization = onPersonalization
+    ).let { base ->
+        object : com.tv.launcher.custom.core.ui.components.CanvasData by base {
+            override fun onNavClick(label: String) {
+                when {
+                    label.contains("personaliz", true) -> onPersonalization()
+                    label.contains("ajust", true) || label.contains("config", true) -> onSettings()
+                    else -> base.onNavClick(label)
+                }
+            }
+        }
+    }
 
     @Test
     fun textMenusKeepDeviceSettingsAndPersonalizationAsSeparateActions() {
@@ -51,13 +82,14 @@ class LauncherSectionContentTest {
         val personalizationLabel = resources.getString(com.tv.launcher.custom.core.ui.R.string.launcher_personalization)
         compose.setContent {
             LauncherTheme(profile) {
-                val apps = persistentListOf(AppEntry("sample.one", "App de prueba"))
-                val focus = remember { FocusRequester() }
-                if (profile == ThemeId.ROKU) {
-                    SideGridLayout(apps, focus, {}, { settingsCalls++ }, onOpenPersonalization = { personalizationCalls++ })
-                } else {
-                    AppleTvLayout(apps, focus, {}, { settingsCalls++ }, onOpenPersonalization = { personalizationCalls++ })
-                }
+                CompositionCanvas(
+                    composition = defaultCompositionFor(profile),
+                    data = remember(profile) {
+                        sectionData({ LauncherSection.HOME }, {}, { settingsCalls++ }, { personalizationCalls++ })
+                    },
+                    modifier = Modifier.fillMaxSize(),
+                    interactive = true
+                )
             }
         }
         listOf(ThemeId.ROKU, ThemeId.APPLE_TV).forEachIndexed { index, theme ->
@@ -88,7 +120,19 @@ class LauncherSectionContentTest {
                             Box(Modifier.fillMaxSize().testTag(section.name)) { Text(section.name) }
                         }
                     }
-                ) { ThemeContent(profile) }
+                ) {
+                    CompositionCanvas(
+                        composition = defaultCompositionFor(profile),
+                        data = remember(profile, section) {
+                            sectionData({ section }, { section = it }, {}, {})
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                        interactive = true,
+                        sectionContent = if (section == LauncherSection.HOME) null else {
+                            @Composable { Box(Modifier.fillMaxSize().testTag(section.name)) { Text(section.name) } }
+                        }
+                    )
+                }
             }
         }
         ThemeId.entries.forEach { theme ->
@@ -143,21 +187,5 @@ class LauncherSectionContentTest {
         compose.onNodeWithText("Inicio").performSemanticsAction(SemanticsActions.RequestFocus) { it() }
         compose.onAllNodesWithTag("SEARCH").assertCountEquals(0)
         compose.onAllNodes(isDialog()).assertCountEquals(0)
-    }
-}
-
-@Composable
-private fun ThemeContent(profile: ThemeId) {
-    val apps = persistentListOf(AppEntry("sample.one", "App de prueba"))
-    val focus = remember { FocusRequester() }
-    when (profile) {
-        ThemeId.WEBOS -> WebOsLayout(apps, focus, {}, {})
-        ThemeId.FIRE_TV -> TopNavLayout(apps, focus, {}, {})
-        ThemeId.ROKU -> SideGridLayout(apps, focus, {}, {})
-        ThemeId.TIZEN -> TizenLayout(apps, focus, {}, {})
-        ThemeId.ANDROID_TV -> AndroidTvLayout(apps, focus, {}, {})
-        ThemeId.GOOGLE_TV -> GoogleTvLayout(apps, focus, {}, {})
-        ThemeId.APPLE_TV -> AppleTvLayout(apps, focus, {}, {})
-        ThemeId.FREE_MY_TV -> FreeMyTvLayout(apps, apps.first(), focus, {}, {})
     }
 }
