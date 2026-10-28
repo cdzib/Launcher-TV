@@ -2,12 +2,16 @@ package com.tv.launcher.custom.core.theme
 
 import com.tv.launcher.custom.core.model.theme.*
 import com.tv.launcher.custom.core.ui.components.CanvasData
+import com.tv.launcher.custom.core.ui.components.glassSurfaceBackground
+import com.tv.launcher.custom.core.ui.components.LocalCanvasWeatherContent
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -48,6 +53,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.IntSize
+import com.tv.launcher.custom.core.ui.components.GlassBackdrop
+import com.tv.launcher.custom.core.ui.components.LocalGlassBackdrop
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -147,12 +161,18 @@ fun CompositionCanvas(
     val personalizationInRail = composition.rail != null && (composition.topBar == null ||
         (!settingsInTopBar && composition.rail?.items.orEmpty().split(',').any(::isSettingsLabel)))
     BoxWithConstraints(modifier) {
+        val landscape = if (composition.bgStyle == BgStyle.LANDSCAPE) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape) else null
+        val frost = if (landscape != null) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost) else null
+        var canvasOrigin by remember { mutableStateOf(Offset.Zero) }
+        var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         val k = (maxWidth.value / REFERENCE_WIDTH_DP).coerceAtLeast(if (interactive) 0.5f else 0.05f)
-        CompositionLocalProvider(LocalCanvasScale provides k) {
+        val widgetHeightLimit = maxHeight * 0.24f
+        CompositionLocalProvider(LocalCanvasScale provides k,
+            LocalGlassBackdrop provides frost?.let { GlassBackdrop(it, canvasOrigin, canvasSize) }) {
             val c1 = composition.bgColor?.let { Color(it) } ?: palette.background
             val c2 = composition.bgColor2?.let { Color(it) } ?: c1
             val brush = when (composition.bgStyle ?: BgStyle.SOLID) {
-                BgStyle.SOLID -> SolidColor(c1)
+                BgStyle.SOLID, BgStyle.LANDSCAPE -> SolidColor(c1)
                 BgStyle.VERTICAL -> Brush.verticalGradient(listOf(c1, c2))
                 BgStyle.DIAGONAL -> Brush.linearGradient(listOf(c1, c2))
                 BgStyle.RADIAL -> Brush.radialGradient(listOf(c2, c1))
@@ -160,14 +180,24 @@ fun CompositionCanvas(
             val canvasBackground: Brush = if (
                 transparentBackground && composition.bgColor == null && composition.bgColor2 == null && composition.bgStyle == null
             ) SolidColor(Color.Transparent) else brush
-            Box(Modifier.fillMaxSize().background(canvasBackground).clipToBounds()) {
-                Row(Modifier.fillMaxSize()) {
-                    composition.rail?.takeUnless { it.overlay }?.let {
+            Box(Modifier.fillMaxSize().background(canvasBackground).clipToBounds().onGloballyPositioned {
+                canvasOrigin = it.positionInRoot(); canvasSize = it.size
+            }) {
+                if (landscape != null) Image(landscape, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                val overlayRail = composition.rail?.takeIf { it.overlay }
+                val overlayWidth = overlayRail?.let { (it.width ?: if (it.style == RailStyle.ICONS) 72 else 220) + if (it.floating) 32 else 0 } ?: 0
+                Column(Modifier.fillMaxSize().padding(
+                    start = if (overlayRail?.position == RailPosition.LEFT) overlayWidth.d() else 0.d(),
+                    end = if (overlayRail?.position == RailPosition.RIGHT) overlayWidth.d() else 0.d(),
+                    bottom = if (overlayRail?.position == RailPosition.BOTTOM) 112.d() else 0.d()
+                )) {
+                Row(Modifier.fillMaxWidth().weight(1f)) {
+                    composition.rail?.takeIf { !it.overlay && it.position == RailPosition.LEFT }?.let {
                         Rail(it, data, interactive, onOpenPersonalization.takeIf { personalizationInRail },
                             onOpenSystemSettingsFallback.takeIf { composition.topBar == null })
                     }
                     Column(Modifier.weight(1f).fillMaxHeight()) {
-                        composition.topBar?.let { TopBar(it, data, interactive, onOpenPersonalization.takeUnless { personalizationInRail }, onOpenSystemSettingsFallback) }
+                        composition.topBar?.takeIf { it.position == TopBarPosition.TOP }?.let { TopBar(it, data, interactive, onOpenPersonalization.takeUnless { personalizationInRail }, onOpenSystemSettingsFallback) }
                         if (composition.topBar == null && composition.rail == null && (onOpenPersonalization != null || onOpenSystemSettingsFallback != null)) {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 24.d(), vertical = 8.d()), horizontalArrangement = Arrangement.spacedBy(12.d(), Alignment.End)) {
                                 onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", palette.onBackground, interactive, it) }
@@ -179,7 +209,7 @@ fun CompositionCanvas(
                         val bottomBlocks = composition.blocks.withIndex().filter { it.value.placement == BlockPlacement.BOTTOM }
                         val hasTitleBlock = contentBlocks.any { it.value.type == ThemeBlockType.TITLE }
                         val firstFocusableBlock = composition.blocks.indexOfFirst { block ->
-                             block.appContent == AppContent.SHORTCUTS || (block.type in setOf(
+                             block.appContent == AppContent.FEATURED_APP || block.appContent == AppContent.SHORTCUTS || (block.type in setOf(
                                 ThemeBlockType.APPS_ROW,
                                 ThemeBlockType.APPS_GRID,
                                 ThemeBlockType.FAVORITES_ROW,
@@ -188,11 +218,16 @@ fun CompositionCanvas(
                             ) && data.itemCount(block) > 0
                                  && data.isItemClickable(block, 0))
                         }
-                        if (sectionContent != null) {
+                         CanvasWidgets(composition.widgets.filter { !it.overlay && (it.anchor == WidgetAnchor.TOP_START || it.anchor == WidgetAnchor.TOP_END) }, widgetHeightLimit)
+                         if (sectionContent != null) {
                              Box(Modifier.fillMaxWidth().weight(1f).padding(
-                                 start = if (composition.rail?.overlay == true) ((composition.rail?.width ?: 56) + 12).d() else pad,
+                                 start = pad,
                                  end = pad, top = composition.topPadding?.d() ?: pad, bottom = pad
-                             )) { sectionContent() }
+                              )) {
+                                  CompositionLocalProvider(
+                                      LocalLauncherStyle provides composition.resolveSectionStyle(LocalLauncherStyle.current)
+                                  ) { sectionContent() }
+                              }
                         } else Column(Modifier.fillMaxWidth().weight(1f)) {
                             Column(
                                 Modifier.fillMaxWidth().weight(1f)
@@ -234,13 +269,51 @@ fun CompositionCanvas(
                                 }
                             }
                         }
+                        CanvasWidgets(composition.widgets.filter { !it.overlay && (it.anchor == WidgetAnchor.BOTTOM_START || it.anchor == WidgetAnchor.BOTTOM_END) }, widgetHeightLimit)
+                        composition.topBar?.takeIf { it.position == TopBarPosition.BOTTOM }?.let { TopBar(it, data, interactive, onOpenPersonalization.takeUnless { personalizationInRail }, onOpenSystemSettingsFallback) }
+                    }
+                    composition.rail?.takeIf { !it.overlay && it.position == RailPosition.RIGHT }?.let {
+                        Rail(it, data, interactive, onOpenPersonalization.takeIf { personalizationInRail },
+                            onOpenSystemSettingsFallback.takeIf { composition.topBar == null })
                     }
                 }
-                 composition.rail?.takeIf { it.overlay }?.let {
-                     Rail(it, data, interactive, onOpenPersonalization.takeIf { personalizationInRail },
-                         onOpenSystemSettingsFallback.takeIf { composition.topBar == null })
+                composition.rail?.takeIf { !it.overlay && it.position == RailPosition.BOTTOM }?.let {
+                    Rail(it, data, interactive, onOpenPersonalization.takeIf { personalizationInRail },
+                        onOpenSystemSettingsFallback.takeIf { composition.topBar == null })
+                }
+                }
+                   if (sectionContent == null) composition.widgets.filter { it.overlay }.forEach { widget ->
+                       val weather = LocalCanvasWeatherContent.current
+                       if (widget.type != ThemeWidgetType.WEATHER || weather != null) {
+                           val atEnd = widget.anchor == WidgetAnchor.TOP_END || widget.anchor == WidgetAnchor.BOTTOM_END
+                           val atBottom = widget.anchor == WidgetAnchor.BOTTOM_START || widget.anchor == WidgetAnchor.BOTTOM_END
+                           Box(Modifier.align(when (widget.anchor) {
+                               WidgetAnchor.TOP_START -> Alignment.TopStart
+                               WidgetAnchor.TOP_END -> Alignment.TopEnd
+                               WidgetAnchor.BOTTOM_START -> Alignment.BottomStart
+                               WidgetAnchor.BOTTOM_END -> Alignment.BottomEnd
+                           }).offset(x = (if (atEnd) -widget.offsetX else widget.offsetX).d(),
+                               y = (if (atBottom) -widget.offsetY else widget.offsetY).d())
+                               .size(widget.width.d(), widget.height.d())
+                               .then(if (widget.glass) Modifier.glassSurfaceBackground() else Modifier)) {
+                               if (widget.type == ThemeWidgetType.CLOCK) SharedClockText(
+                                   modifier = Modifier.align(Alignment.CenterStart), fontSize = 52.s(), color = Color.White,
+                                   use24Hour = widget.use24Hour, showDate = widget.showDate, stackedDate = true
+                               ) else weather?.invoke(Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+                           }
+                       }
+                   }
+                   composition.rail?.takeIf { it.overlay }?.let {
+                     Box(Modifier.align(when (it.position) {
+                         RailPosition.LEFT -> Alignment.CenterStart
+                         RailPosition.RIGHT -> Alignment.CenterEnd
+                         RailPosition.BOTTOM -> Alignment.BottomCenter
+                     })) {
+                      Rail(it, data, interactive, onOpenPersonalization.takeIf { personalizationInRail },
+                          onOpenSystemSettingsFallback.takeIf { composition.topBar == null })
+                     }
                  }
-                 if (sectionContent == null && composition.topBar == null && composition.rail == null && composition.blocks.none { it.type == ThemeBlockType.TITLE }) {
+                  if (sectionContent == null && composition.widgets.isEmpty() && composition.topBar == null && composition.rail == null && composition.blocks.none { it.type == ThemeBlockType.TITLE }) {
                     Text(
                         title,
                         Modifier.align(Alignment.TopStart)
@@ -258,6 +331,36 @@ fun CompositionCanvas(
 }
 
 // ───────────── Tile: superficie con foco configurable ─────────────
+
+@Composable
+private fun CanvasWidgets(widgets: List<ThemeWidget>, heightLimit: Dp) {
+    val weatherContent = LocalCanvasWeatherContent.current
+    val visibleWidgets = widgets.filter { it.type != ThemeWidgetType.WEATHER || weatherContent != null }
+    if (visibleWidgets.isEmpty()) return
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.d(), vertical = 8.d())) {
+        val availableWidth = maxWidth
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            val start = visibleWidgets.firstOrNull { it.anchor == WidgetAnchor.TOP_START || it.anchor == WidgetAnchor.BOTTOM_START }
+            val end = visibleWidgets.firstOrNull { it.anchor == WidgetAnchor.TOP_END || it.anchor == WidgetAnchor.BOTTOM_END }
+            if (start == null) Spacer(Modifier.weight(1f))
+            listOfNotNull(start, end).forEach { widget ->
+                Box(Modifier.width(widget.width.d().coerceAtMost((availableWidth / 2 - 8.d()).coerceAtLeast(0.dp)))
+                    .height(widget.height.d().coerceAtMost(heightLimit))
+                    .then(if (widget.glass) Modifier.glassSurfaceBackground() else Modifier)
+                    .verticalScroll(rememberScrollState())) {
+                    when (widget.type) {
+                        ThemeWidgetType.CLOCK -> SharedClockText(
+                            modifier = Modifier.align(Alignment.Center).padding(16.d()),
+                            fontSize = 28.s(), color = Color.White,
+                            use24Hour = widget.use24Hour, showDate = widget.showDate
+                        )
+                        ThemeWidgetType.WEATHER -> weatherContent?.invoke(Modifier.fillMaxWidth())
+                    }
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -483,7 +586,7 @@ private fun AppCard(
             focusScale = block.rFocusScale(),
             focusColor = textColor
         ) {
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().then(if (style == CardStyle.GLASS) Modifier.glassSurfaceBackground(shape) else Modifier)) {
                 data.Icon(block, index, Modifier.fillMaxSize())
                 if (pos == LabelPos.INSIDE) {
                     Text(
@@ -499,7 +602,7 @@ private fun AppCard(
         if (pos == LabelPos.BELOW) {
             Text(
                 data.label(block, index), Modifier.padding(top = 6.d()),
-                fontSize = 12.s(), color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis
+                fontSize = (block.textSize ?: 12).s(), color = textColor, maxLines = 1, overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -512,10 +615,11 @@ private fun Hero(block: ThemeBlock, title: String, data: CanvasData, interactive
     val base = block.bgColor?.let { Color(it) } ?: palette.surface
     val textColor = block.textColor?.let { Color(it) } ?: Color.White
     val a = block.rAlign()
-    val opaque = block.bgAlpha != 0
+    val glass = block.rCardStyle() == CardStyle.GLASS
+    val opaque = block.bgAlpha != 0 && !glass
     Box(
         Modifier.fillMaxWidth().height(block.rItemH().d()).clip(shape)
-            .then(if (opaque) Modifier.background(Brush.horizontalGradient(listOf(base, palette.background))) else Modifier)
+            .then(if (glass) Modifier.glassSurfaceBackground(shape) else if (opaque) Modifier.background(Brush.horizontalGradient(listOf(base, palette.background))) else Modifier)
     ) {
         data.HeroBackground(block, Modifier.fillMaxSize())
         if (opaque) Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f)))))
@@ -661,13 +765,13 @@ private fun GlyphButton(label: String, color: Color, interactive: Boolean, onCli
 private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, onOpenPersonalization: (() -> Unit)? = null, onOpenSystemSettingsFallback: (() -> Unit)? = null) {
     val activeSection = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
     val palette = LocalLauncherStyle.current.palette
-    val text = cfg.textColor?.let { Color(it) } ?: palette.onBackground
-    val muted = text.copy(alpha = 0.65f)
+    val text = cfg.textColor?.let { Color(it) } ?: if (cfg.glass) Color.White else palette.onBackground
+    val muted = text.copy(alpha = if (cfg.glass) 0.9f else 0.65f)
     var current by remember { mutableIntStateOf(0) }
     val bg = cfg.bgColor?.let { Color(it).copy(alpha = (cfg.bgAlpha ?: 100) / 100f) } ?: Color.Transparent
     val renderedTabs = getRenderedTopBarTabs(cfg)
     Row(
-        Modifier.fillMaxWidth().background(bg).padding(horizontal = 32.d(), vertical = 14.d()),
+        Modifier.fillMaxWidth().background(bg).then(if (cfg.glass) Modifier.glassSurfaceBackground() else Modifier).padding(horizontal = 32.d(), vertical = 14.d()),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.d())
     ) {
@@ -734,8 +838,8 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
     val items = cfg.items.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
     val bottomItems = cfg.bottomItems.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
     var current by remember { mutableIntStateOf(0) }
-    val text = cfg.textColor?.let { Color(it) } ?: palette.onBackground
-    val muted = text.copy(alpha = 0.7f)
+    val text = cfg.textColor?.let { Color(it) } ?: if (cfg.glass) Color.White else palette.onBackground
+    val muted = text.copy(alpha = if (cfg.glass) 0.9f else 0.7f)
     val w = cfg.width ?: when (cfg.style) { RailStyle.ICONS -> 72; else -> 220 }
     val shape = RoundedCornerShape((cfg.cornerRadius ?: if (cfg.floating) 24 else 0).d())
     val bg = cfg.bgColor?.let { Color(it).copy(alpha = (cfg.bgAlpha ?: 100) / 100f) } ?: Color.Transparent
@@ -744,8 +848,13 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
 
     @Composable
     fun RailItem(label: String, index: Int) {
+        val displayLabel = when {
+            isSettingsLabel(label) -> androidx.compose.ui.res.stringResource(com.tv.launcher.custom.core.ui.R.string.system_settings)
+            isPersonalizationLabel(label) -> androidx.compose.ui.res.stringResource(com.tv.launcher.custom.core.ui.R.string.launcher_personalization)
+            else -> label
+        }
         val destination = com.tv.launcher.custom.core.ui.components.resolveLauncherSection(label)
-        val sel = if (interactive && destination != null) destination == activeSection else index == current
+        val sel = if (interactive) destination != null && destination == activeSection else index == current
         val fg = if (sel && cfg.style != RailStyle.ICONS) Color.Black else muted
         val container = if (sel && cfg.overlay) palette.accent else if (sel) Color.White.copy(alpha = if (cfg.style == RailStyle.ICONS) 0.2f else 0.92f) else Color.Transparent
         when (cfg.style) {
@@ -763,15 +872,45 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
                         val iconSize = cfg.textSize ?: 16
                         NavigationIcon(label, fg, Modifier.size(iconSize.d().coerceAtMost(28.dp)))
                     }
-                    Text(label, fontSize = size, color = fg, maxLines = 1)
+                    Text(displayLabel, fontSize = size, color = fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
     }
 
+    if (cfg.position == RailPosition.BOTTOM) {
+        Row(
+            Modifier.fillMaxWidth().height(112.d()).padding(if (cfg.floating) 16.d() else 0.d())
+                .clip(shape).background(bg, shape).then(if (cfg.glass) Modifier.glassSurfaceBackground(shape) else Modifier)
+                .horizontalScroll(rememberScrollState()).focusGroup().padding(12.d()),
+            horizontalArrangement = Arrangement.spacedBy(12.d(), Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            cfg.logo?.takeIf { it.isNotBlank() }?.let { Text(it, color = text, fontSize = 22.s()) }
+            if (cfg.showProfile) NavigationIcon("Perfil", text, Modifier.size(36.d()))
+            (items + bottomItems).forEachIndexed { index, label ->
+                Box(Modifier.width(if (cfg.style == RailStyle.ICONS) 56.d() else w.d())) { RailItem(label, index) }
+            }
+            cfg.appShortcutCount?.let { count ->
+                data.installedApps().take(count).forEachIndexed { index, app ->
+                    Tile(interactive, { data.onItemClick(ThemeBlock(ThemeBlockType.APPS_ROW), index) },
+                        Modifier, RoundedCornerShape(8.d()), Color.Transparent, text, FocusStyle.BORDER, 1f, text) {
+                        Text(app.label, Modifier.padding(12.d()), color = text, fontSize = size, maxLines = 1)
+                    }
+                }
+            }
+            onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", text, interactive, it) }
+            onOpenPersonalization?.let { LauncherPersonalizationButton(it) }
+        }
+        return
+    }
     Column(
-        Modifier.fillMaxHeight().padding(if (cfg.floating) 16.d() else 0.d()).width(w.d())
-            .clip(shape).background(bg, shape).padding(horizontal = if (cfg.overlay) 0.d() else 12.d(), vertical = if (cfg.overlay) 24.d() else 16.d()),
+        Modifier.padding(top = cfg.topInset.d())
+            .then(cfg.height?.let { Modifier.height(it.d()) } ?: Modifier.fillMaxHeight())
+            .padding(if (cfg.floating) 16.d() else 0.d()).width(w.d())
+            .clip(shape).background(bg, shape).then(if (cfg.glass) Modifier.glassSurfaceBackground(shape) else Modifier)
+            .focusGroup().verticalScroll(rememberScrollState())
+            .padding(horizontal = if (cfg.overlay) 0.d() else 12.d(), vertical = if (cfg.overlay) 24.d() else 16.d()),
         verticalArrangement = Arrangement.spacedBy(if (cfg.overlay) 8.d() else 6.d()),
         horizontalAlignment = if (cfg.style == RailStyle.ICONS) Alignment.CenterHorizontally else Alignment.Start
     ) {
@@ -806,7 +945,7 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
         }
         if (bottomItems.isNotEmpty()) Spacer(Modifier.weight(1f))
         bottomItems.forEachIndexed { i, label -> RailItem(label, items.size + i) }
-        onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", text, interactive, it) }
+        if ((items + bottomItems).none(::isSettingsLabel)) onOpenSystemSettingsFallback?.let { GlyphButton("Ajustes", text, interactive, it) }
         if (items.none(::isSettingsLabel) && onOpenPersonalization != null) LauncherPersonalizationButton(onOpenPersonalization)
     }
 }

@@ -47,7 +47,9 @@ internal fun AppContentBlock(block: ThemeBlock, data: CanvasData, interactive: B
     }
     when (block.appContent) {
         AppContent.FEATURED_APP -> InstalledAppHero(resolveShortcut(apps, shortcuts, 0) ?: apps.firstOrNull(),
-            ::launch, Modifier.fillMaxWidth().height(height), interactive, scale)
+            ::launch, Modifier.fillMaxWidth().height(height)
+                .then(firstItemFocus?.let { Modifier.focusRequester(it) } ?: Modifier), interactive, scale,
+            glass = block.rCardStyle() == CardStyle.GLASS)
         AppContent.SHORTCUTS -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy((12 * scale).dp)) {
             repeat(5) { slot ->
                 val app = resolveShortcut(apps, shortcuts, slot)

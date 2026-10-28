@@ -89,7 +89,7 @@ internal fun SearchFocusLayout(
         }
     }
 
-    Row(Modifier.fillMaxSize().background(palette.background)) {
+    Row(Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.background(palette.background))) {
         if (!embedded) FocusRail(
             modifier = Modifier.fillMaxWidth(.27f).fillMaxHeight(),
             onHome = onDismiss,
@@ -97,7 +97,7 @@ internal fun SearchFocusLayout(
             onSearch = { fieldFocus.requestFocus() },
             onSettings = onOpenSettings
         )
-        Column(Modifier.weight(1f).fillMaxHeight().background(panelBackground)) {
+        Column(Modifier.weight(1f).fillMaxHeight().then(if (embedded) Modifier else Modifier.background(panelBackground))) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 Column(Modifier.fillMaxSize()) {
                     Column(

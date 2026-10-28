@@ -90,7 +90,7 @@ fun AppSearchScreen(
 
     Box(
         Modifier.fillMaxSize()
-            .background(style.palette.background)
+            .then(if (embedded) Modifier else Modifier.background(style.palette.background))
             .onPreviewKeyEvent { event ->
                 if (event.key == Key.Escape && event.type == KeyEventType.KeyUp) {
                     if (keyboardVisible) keyboardVisible = false else onDismiss()
@@ -164,6 +164,19 @@ private val SearchPreviewApps = listOf(
 @Composable
 private fun AppSearchEmbeddedPreview() = LauncherTheme(ThemeId.ROKU) {
     AppSearchScreen(SearchPreviewApps, {}, {}, embedded = true)
+}
+
+@Preview(name = "Buscar integrado · Material de vidrio", widthDp = 720, heightDp = 460)
+@Composable
+private fun AppSearchGlassPreview() = LauncherTheme(ThemeId.ROKU) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalLauncherStyle provides LocalLauncherStyle.current.copy(
+            glassSurfaces = true, declarativeSurfaces = true,
+            tileRadius = androidx.compose.ui.unit.Dp(14f)
+        )
+    ) {
+        AppSearchScreen(SearchPreviewApps, {}, {}, embedded = true)
+    }
 }
 
 @Preview(name = "Buscar integrado · Teclado", widthDp = 720, heightDp = 460)

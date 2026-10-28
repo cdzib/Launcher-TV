@@ -9,6 +9,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsFocused
@@ -44,6 +47,7 @@ import org.junit.runner.RunWith
  * no layouts nativos.
  */
 @RunWith(AndroidJUnit4::class)
+@OptIn(androidx.compose.ui.test.ExperimentalTestApi::class)
 class LauncherSectionContentTest {
     @get:Rule val compose = createComposeRule()
 
@@ -94,12 +98,14 @@ class LauncherSectionContentTest {
         }
         listOf(ThemeId.ROKU, ThemeId.APPLE_TV).forEachIndexed { index, theme ->
             compose.runOnIdle { profile = theme }
-            compose.onNodeWithText(settingsLabel).performClick()
+            compose.onNodeWithText(settingsLabel).performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            compose.onNodeWithText(settingsLabel).performKeyInput { pressKey(Key.DirectionCenter) }
             compose.runOnIdle {
                 assertEquals(index + 1, settingsCalls)
                 assertEquals(index, personalizationCalls)
             }
-            compose.onNodeWithText(personalizationLabel).performClick()
+            compose.onNodeWithText(personalizationLabel).performSemanticsAction(SemanticsActions.RequestFocus) { it() }
+            compose.onNodeWithText(personalizationLabel).performKeyInput { pressKey(Key.DirectionCenter) }
             compose.runOnIdle { assertEquals(index + 1, personalizationCalls) }
         }
     }

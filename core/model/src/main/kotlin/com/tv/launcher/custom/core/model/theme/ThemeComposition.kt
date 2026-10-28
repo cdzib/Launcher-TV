@@ -7,9 +7,26 @@ enum class CardAspect(val ratio: Float) { WIDE(16f / 9f), SQUARE(1f), PORTRAIT(2
 enum class CardStyle { FILLED, LIGHT, GLASS, OUTLINE, NONE }
 enum class LabelPos { NONE, BELOW, INSIDE }
 enum class FocusStyle { SCALE, BORDER, SCALE_BORDER, GLOW }
-enum class BgStyle { SOLID, VERTICAL, DIAGONAL, RADIAL }
+enum class BgStyle { SOLID, VERTICAL, DIAGONAL, RADIAL, LANDSCAPE }
 enum class TopBarStyle { TABS_PILL, TABS_TEXT, ICONS, MINIMAL }
 enum class RailStyle { LIST, ICONS, ICONS_LABELS }
+enum class RailPosition { LEFT, RIGHT, BOTTOM }
+enum class TopBarPosition { TOP, BOTTOM }
+enum class ThemeWidgetType { CLOCK, WEATHER }
+enum class WidgetAnchor { TOP_START, TOP_END, BOTTOM_START, BOTTOM_END }
+
+data class ThemeWidget(
+    val type: ThemeWidgetType,
+    val anchor: WidgetAnchor = WidgetAnchor.TOP_END,
+    val width: Int = 320,
+    val height: Int = 200,
+    val showDate: Boolean = true,
+    val use24Hour: Boolean = true,
+    val overlay: Boolean = false,
+    val offsetX: Int = 0,
+    val offsetY: Int = 0,
+    val glass: Boolean = true
+)
 enum class AppContent { FEATURED_APP, SHORTCUTS, APP_ICONS, SHORTCUT_EDITOR, APP_CARDS, APP_ICON_ROW }
 
 data class ThemeBlock(
@@ -78,6 +95,8 @@ data class ThemeContentItem(
 )
 
 data class TopBarConfig(
+    val position: TopBarPosition = TopBarPosition.TOP,
+    val glass: Boolean = false,
     val style: TopBarStyle = TopBarStyle.TABS_PILL,
     val tabs: String? = "Inicio,Apps",
     val logo: String? = null,
@@ -91,6 +110,10 @@ data class TopBarConfig(
 )
 
 data class RailConfig(
+    val topInset: Int = 0,
+    val height: Int? = null,
+    val position: RailPosition = RailPosition.LEFT,
+    val glass: Boolean = false,
     val style: RailStyle = RailStyle.LIST,
     val items: String? = "Inicio,Buscar,Apps,Ajustes",
     val width: Int? = null,
@@ -117,5 +140,12 @@ data class ThemeComposition(
     val bgStyle: BgStyle? = null,
     val topBar: TopBarConfig? = null,
     val rail: RailConfig? = null,
-    val topPadding: Int? = null
+    val topPadding: Int? = null,
+    val widgets: List<ThemeWidget> = emptyList()
 )
+
+fun ThemeComposition.requiresFormatV3(): Boolean =
+    widgets.isNotEmpty() || bgStyle == BgStyle.LANDSCAPE || rail?.glass == true || topBar?.glass == true ||
+        rail?.position?.let { it != RailPosition.LEFT } == true ||
+        topBar?.position?.let { it != TopBarPosition.TOP } == true ||
+        rail?.topInset?.let { it != 0 } == true || rail?.height != null

@@ -19,7 +19,7 @@ class BundledThemeEditabilityTest {
             "launch-dock-demo.zip", "side-stream-demo.zip", "nova-minimal-premium.zip",
             "custom-layout-validation.zip", "webos-editable.zip", "android-tv-editable.zip",
             "google-tv-editable.zip", "fire-tv-editable.zip", "roku-editable.zip",
-            "tizen-editable.zip", "apple-tv-editable.zip", "free-my-tv-editable.zip"
+            "tizen-editable.zip", "apple-tv-editable.zip", "free-my-tv-editable.zip", "macos-liquid-glass.zip"
         ), editableArchives)
     }
 }

@@ -41,7 +41,11 @@ object ThemeArchiveWriter {
             }
         }
         val manifest = buildJsonObject {
-            put("formatVersion", if (composition == null) 1 else 2)
+            put("formatVersion", when {
+                composition == null -> 1
+                composition.requiresFormatV3() -> 3
+                else -> 2
+            })
             put("id", id)
             put("name", name ?: "${appearance.themeId.name.replace('_', ' ')} Demo")
             put("layout", appearance.themeId.name)

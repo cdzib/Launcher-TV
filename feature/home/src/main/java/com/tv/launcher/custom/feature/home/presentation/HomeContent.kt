@@ -56,4 +56,9 @@ fun HomeContent(
         )
         return
     }
+    CustomThemeLayout(
+        state.themeId.name,
+        com.tv.launcher.custom.core.theme.defaultCompositionFor(state.themeId),
+        installedCanvasData, firstItemFocus, onOpenSettings, onOpenPersonalization
+    )
 }

@@ -84,7 +84,7 @@ private val ASPECTS = listOf("16:9" to CardAspect.WIDE, "Cuadrada 1:1" to CardAs
 private val CARD_STYLES = listOf("Sólida" to CardStyle.FILLED, "Blanca" to CardStyle.LIGHT, "Cristal" to CardStyle.GLASS, "Contorno" to CardStyle.OUTLINE, "Sin fondo" to CardStyle.NONE)
 private val LABELS = listOf("Oculto" to LabelPos.NONE, "Debajo" to LabelPos.BELOW, "Dentro" to LabelPos.INSIDE)
 private val FOCUSES = listOf("Zoom" to FocusStyle.SCALE, "Borde" to FocusStyle.BORDER, "Zoom + borde" to FocusStyle.SCALE_BORDER, "Brillo" to FocusStyle.GLOW)
-private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL)
+private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL, "Paisaje original" to BgStyle.LANDSCAPE)
 private val TOP_STYLES = listOf("Pestañas píldora" to TopBarStyle.TABS_PILL, "Pestañas texto" to TopBarStyle.TABS_TEXT, "Íconos" to TopBarStyle.ICONS, "Mínima" to TopBarStyle.MINIMAL)
 private val RAIL_STYLES = listOf("Lista" to RailStyle.LIST, "Íconos" to RailStyle.ICONS, "Íconos + texto" to RailStyle.ICONS_LABELS)
 private val PLACEMENTS = listOf("Contenido" to BlockPlacement.CONTENT, "Anclado abajo" to BlockPlacement.BOTTOM)
@@ -145,11 +145,55 @@ internal fun GlobalInspector(composition: ThemeComposition, onChange: (ThemeComp
     Text(stringResource(R.string.editor_background_spacing), fontSize = 20.sp)
     Picker("Tipo de fondo", BG_STYLES, style) { onChange(composition.copy(bgStyle = it)) }
     ColorRow("Color de fondo", composition.bgColor) { onChange(composition.copy(bgColor = it)) }
-    if (style != BgStyle.SOLID) ColorRow("Segundo color", composition.bgColor2) { onChange(composition.copy(bgColor2 = it)) }
+    if (style != BgStyle.SOLID && style != BgStyle.LANDSCAPE) ColorRow("Segundo color", composition.bgColor2) { onChange(composition.copy(bgColor2 = it)) }
     Stepper("Espacio entre secciones", composition.spacing ?: 16, 0, 64, 2, "dp") { onChange(composition.copy(spacing = it)) }
     Stepper("Margen general", composition.padding ?: 24, 0, 96, 4, "dp") { onChange(composition.copy(padding = it)) }
     composition.topPadding?.let { value ->
         Stepper(stringResource(R.string.editor_block_top_inset), value, 0, 96, 4, "dp") { onChange(composition.copy(topPadding = it)) }
+    }
+    WidgetInspector(composition, onChange)
+}
+
+@Composable
+private fun WidgetInspector(composition: ThemeComposition, onChange: (ThemeComposition) -> Unit) {
+    Text(stringResource(R.string.editor_widgets), fontSize = 20.sp)
+    val anchors = listOf(
+        stringResource(R.string.editor_anchor_top_start) to WidgetAnchor.TOP_START,
+        stringResource(R.string.editor_anchor_top_end) to WidgetAnchor.TOP_END,
+        stringResource(R.string.editor_anchor_bottom_start) to WidgetAnchor.BOTTOM_START,
+        stringResource(R.string.editor_anchor_bottom_end) to WidgetAnchor.BOTTOM_END
+    )
+    val freeAnchor = WidgetAnchor.entries.firstOrNull { anchor -> composition.widgets.none { it.anchor == anchor } }
+    if (freeAnchor != null) {
+        SettingsButton(stringResource(R.string.editor_add_clock), onClick = {
+            onChange(composition.copy(widgets = composition.widgets + ThemeWidget(ThemeWidgetType.CLOCK, anchor = freeAnchor, height = 120)))
+        })
+        SettingsButton(stringResource(R.string.editor_add_weather), onClick = {
+            onChange(composition.copy(widgets = composition.widgets + ThemeWidget(ThemeWidgetType.WEATHER, anchor = freeAnchor)))
+        })
+    }
+    composition.widgets.forEachIndexed { index, widget ->
+        fun update(transform: (ThemeWidget) -> ThemeWidget) = onChange(composition.copy(
+            widgets = composition.widgets.mapIndexed { itemIndex, item -> if (itemIndex == index) transform(item) else item }
+        ))
+        SettingsButton(stringResource(R.string.editor_remove_widget, index + 1), onClick = {
+            onChange(composition.copy(widgets = composition.widgets.filterIndexed { itemIndex, _ -> itemIndex != index }))
+        })
+        Picker(stringResource(R.string.editor_widget_anchor), anchors.filter { (_, anchor) ->
+            anchor == widget.anchor || composition.widgets.none { it.anchor == anchor }
+        }, widget.anchor) { anchor -> update { it.copy(anchor = anchor) } }
+        Stepper(stringResource(R.string.editor_widget_width), widget.width, 100, 400, 8, "dp") { width -> update { it.copy(width = width) } }
+        Stepper(stringResource(R.string.editor_widget_height), widget.height, 60, 240, 8, "dp") { height -> update { it.copy(height = height) } }
+        Picker(stringResource(R.string.editor_overlay_navigation), YESNO, widget.overlay) { value -> update { it.copy(overlay = value) } }
+        Picker(stringResource(R.string.editor_layered_glass), YESNO, widget.glass) { value -> update { it.copy(glass = value) } }
+        if (widget.overlay) {
+            Stepper(stringResource(R.string.editor_widget_offset_x), widget.offsetX, 0, 360, 4, "dp") { value -> update { it.copy(offsetX = value) } }
+            Stepper(stringResource(R.string.editor_widget_offset_y), widget.offsetY, 0, 360, 4, "dp") { value -> update { it.copy(offsetY = value) } }
+        }
+        if (widget.type == ThemeWidgetType.CLOCK) {
+            Picker(stringResource(R.string.editor_widget_date), YESNO, widget.showDate) { value -> update { it.copy(showDate = value) } }
+            Picker(stringResource(R.string.editor_widget_24_hour), YESNO, widget.use24Hour) { value -> update { it.copy(use24Hour = value) } }
+        } else Text(stringResource(R.string.editor_widget_weather_hint), color = SettingsColors.muted)
     }
 }
 
@@ -163,6 +207,11 @@ internal fun TopBarInspector(composition: ThemeComposition, onChange: (ThemeComp
     }
     fun up(t: (TopBarConfig) -> TopBarConfig) = onChange(composition.copy(topBar = t(cfg)))
     SettingsButton(stringResource(R.string.editor_remove_top), onClick = { onChange(composition.copy(topBar = null)) })
+    Picker(stringResource(R.string.editor_navigation_position), listOf(
+        stringResource(R.string.editor_position_top) to TopBarPosition.TOP,
+        stringResource(R.string.editor_position_bottom) to TopBarPosition.BOTTOM
+    ), cfg.position) { value -> up { it.copy(position = value) } }
+    Picker(stringResource(R.string.editor_layered_glass), YESNO, cfg.glass) { value -> up { it.copy(glass = value) } }
     Picker("Estilo", TOP_STYLES, cfg.style) { v -> up { it.copy(style = v) } }
     if (cfg.style != TopBarStyle.MINIMAL) {
         Field("Pestañas (coma). La primera es la activa", cfg.tabs.orEmpty(), "Inicio,Apps", 80) { v -> up { it.copy(tabs = v) } }
@@ -187,10 +236,19 @@ internal fun RailInspector(composition: ThemeComposition, onChange: (ThemeCompos
     }
     fun up(t: (RailConfig) -> RailConfig) = onChange(composition.copy(rail = t(cfg)))
     SettingsButton(stringResource(R.string.editor_remove_rail), onClick = { onChange(composition.copy(rail = null)) })
+    Picker(stringResource(R.string.editor_navigation_position), listOf(
+        stringResource(R.string.editor_position_left) to RailPosition.LEFT,
+        stringResource(R.string.editor_position_right) to RailPosition.RIGHT,
+        stringResource(R.string.editor_position_bottom) to RailPosition.BOTTOM
+    ), cfg.position) { value -> up { it.copy(position = value) } }
+    Picker(stringResource(R.string.editor_layered_glass), YESNO, cfg.glass) { value -> up { it.copy(glass = value) } }
     Picker("Estilo", RAIL_STYLES, cfg.style) { v -> up { it.copy(style = v) } }
     Picker(stringResource(R.string.editor_overlay_navigation), YESNO, cfg.overlay) { v -> up { it.copy(overlay = v) } }
     Field("Opciones (coma). La primera es la activa", cfg.items.orEmpty(), "Inicio,Buscar,Apps", 120) { v -> up { it.copy(items = v) } }
     Stepper("Ancho", cfg.width ?: if (cfg.style == RailStyle.ICONS) 72 else 220, 56, 360, 8, "dp") { v -> up { it.copy(width = v) } }
+    Stepper(stringResource(R.string.editor_widget_offset_y), cfg.topInset, 0, 360, 4, "dp") { v -> up { it.copy(topInset = v) } }
+    Picker(stringResource(R.string.editor_rail_fixed_height), YESNO, cfg.height != null) { v -> up { it.copy(height = if (v) 326 else null) } }
+    cfg.height?.let { height -> Stepper(stringResource(R.string.editor_widget_height), height, 120, 600, 8, "dp") { v -> up { it.copy(height = v) } } }
     Picker("Flotante (con margen)", YESNO, cfg.floating) { v -> up { it.copy(floating = v) } }
     Stepper("Esquinas", cfg.cornerRadius ?: if (cfg.floating) 24 else 0, 0, 60, 2, "dp") { v -> up { it.copy(cornerRadius = v) } }
     Stepper("Tamaño de texto", cfg.textSize ?: 16, 12, 28, 1, "sp") { v -> up { it.copy(textSize = v) } }
@@ -238,6 +296,11 @@ internal fun BlockInspector(
 
     if (block.appContent != null) {
         Text(stringResource(R.string.editor_dynamic_apps_hint), color = SettingsColors.muted)
+        if (block.appContent == AppContent.FEATURED_APP) {
+            Picker(stringResource(R.string.editor_layered_glass), YESNO, block.rCardStyle() == CardStyle.GLASS) { value ->
+                update { it.copy(cardStyle = if (value) CardStyle.GLASS else CardStyle.FILLED) }
+            }
+        }
         if (block.appContent != AppContent.SHORTCUT_EDITOR) {
             Stepper(stringResource(R.string.editor_block_height), block.rItemH(), 28, 400, 4, "dp") { value ->
                 update { it.copy(itemHeight = value) }
@@ -262,6 +325,9 @@ internal fun BlockInspector(
         }
         ThemeBlockType.SPACER -> Stepper("Altura", block.weight ?: 1, 1, 12) { v -> update { it.copy(weight = v) } }
         ThemeBlockType.HERO -> {
+            Picker(stringResource(R.string.editor_layered_glass), YESNO, block.rCardStyle() == CardStyle.GLASS) { value ->
+                update { it.copy(cardStyle = if (value) CardStyle.GLASS else CardStyle.FILLED) }
+            }
             Field("Título (vacío = nombre del diseño)", block.text.orEmpty(), "Título", 60) { v -> update { it.copy(text = v.ifBlank { null }) } }
             Field("Subtítulo", block.subtitle.orEmpty(), "Descripción", 90) { v -> update { it.copy(subtitle = v.ifBlank { null }) } }
             Field("Botón (vacío = sin botón)", block.buttonText.orEmpty(), "Más información", 30) { v -> update { it.copy(buttonText = v.ifBlank { null }) } }

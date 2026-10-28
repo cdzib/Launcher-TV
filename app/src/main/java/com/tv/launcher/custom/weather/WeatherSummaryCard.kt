@@ -1,6 +1,13 @@
 package com.tv.launcher.custom.weather
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,17 +41,23 @@ fun WeatherSummaryCard(
     mutedColor: Color,
     onIntent: (HomeIntent) -> Unit,
     onOpenSettings: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    stackActions: Boolean = false,
+    compact: Boolean = false
 ) {
     val context = LocalContext.current
     val city = state.settings.city
     val currentWeather = state.currentWeather
+    var isFocused by remember { mutableStateOf(false) }
     if (!state.settings.isEnabled || city == null) return
     Column(
-        modifier.clip(RoundedCornerShape(16.dp)).background(backgroundColor.copy(alpha = 0.94f)).padding(16.dp),
+        modifier.clip(RoundedCornerShape(16.dp)).background(backgroundColor.copy(alpha = backgroundColor.alpha * 0.94f))
+            .then(if (compact) Modifier.onFocusChanged { isFocused = it.isFocused }
+                .then(if (isFocused) Modifier.border(2.dp, contentColor, RoundedCornerShape(16.dp)) else Modifier)
+                .clickable(onClick = onOpenSettings) else Modifier).padding(if (compact) 10.dp else 16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(city.displayName, color = contentColor, fontSize = 16.sp, maxLines = 1)
+        Text(city.displayName, color = contentColor, fontSize = if (compact) 11.sp else 16.sp, maxLines = 1)
         when {
             state.isLoadingWeather && state.currentWeather == null -> Text(
                 stringResource(R.string.weather_loading), color = mutedColor
@@ -52,15 +65,15 @@ fun WeatherSummaryCard(
             currentWeather != null -> {
                 val weather = currentWeather
                 Text(
-                    "${weather.temperature.toInt()}${if (weather.unit == WeatherUnit.CELSIUS) "°C" else "°F"} · " +
-                        stringResource(weatherConditionString(weather.weatherCode)),
+                    "${weather.temperature.toInt()}${if (weather.unit == WeatherUnit.CELSIUS) "°C" else "°F"}" +
+                        if (compact) "" else " · " + stringResource(weatherConditionString(weather.weatherCode)),
                     color = contentColor,
-                    fontSize = 24.sp
+                    fontSize = if (compact) 28.sp else 24.sp
                 )
                 Text(
-                    stringResource(if (weather.isDay) R.string.weather_day else R.string.weather_night),
+                    stringResource(if (compact) weatherConditionString(weather.weatherCode) else if (weather.isDay) R.string.weather_day else R.string.weather_night),
                     color = mutedColor,
-                    fontSize = 12.sp
+                    fontSize = if (compact) 10.sp else 12.sp
                 )
                 if (state.hasWeatherError) Text(stringResource(R.string.weather_offline), color = mutedColor, fontSize = 12.sp)
             }
@@ -69,12 +82,14 @@ fun WeatherSummaryCard(
                 Button(onClick = { onIntent(HomeIntent.RefreshWeather) }) { Text(stringResource(R.string.weather_retry)) }
             }
         }
-        Row {
+        val actions: @Composable () -> Unit = {
             Button(onClick = { openWeatherAttribution(context) }) {
                 Text(stringResource(R.string.weather_attribution), color = mutedColor, fontSize = 11.sp)
             }
             Button(onClick = onOpenSettings) { Text(stringResource(R.string.weather_settings_title)) }
         }
+        if (compact) Text(stringResource(R.string.weather_attribution), color = mutedColor, fontSize = 8.sp)
+        else if (stackActions) Column { actions() } else Row { actions() }
     }
 }
 
@@ -92,7 +107,7 @@ private fun weatherConditionString(weatherCode: Int): Int = when (weatherCode) {
 
 @Preview(widthDp = 420, heightDp = 240)
 @Composable
-private fun WeatherSummaryCardPreview() = LauncherTheme(com.tv.launcher.custom.core.model.theme.ThemeId.WEBOS) {
+private fun WeatherSummaryCardPreview(compact: Boolean = false) = LauncherTheme(com.tv.launcher.custom.core.model.theme.ThemeId.WEBOS) {
     val colors = com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle.current.palette
     WeatherSummaryCard(
         state = WeatherUiState(
@@ -105,6 +120,11 @@ private fun WeatherSummaryCardPreview() = LauncherTheme(com.tv.launcher.custom.c
         contentColor = colors.onBackground,
         mutedColor = colors.onMuted,
         onIntent = {},
-        onOpenSettings = {}
+        onOpenSettings = {},
+        compact = compact
     )
 }
+
+@Preview(name = "Compact host weather", widthDp = 140, heightDp = 120)
+@Composable
+private fun WeatherSummaryCardCompactPreview() = WeatherSummaryCardPreview(compact = true)

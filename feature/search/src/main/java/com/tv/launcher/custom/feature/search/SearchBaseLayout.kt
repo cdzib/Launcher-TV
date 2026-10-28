@@ -96,9 +96,9 @@ internal fun SearchBaseLayout(
     }
 
     Row(
-        Modifier.fillMaxSize().background(
+        Modifier.fillMaxSize().then(if (embedded) Modifier else Modifier.background(
             Brush.linearGradient(listOf(palette.background, lerp(palette.surface, palette.background, .18f)))
-        )
+        ))
     ) {
         if (!embedded) Column(
             Modifier.width(72.dp)

@@ -10,6 +10,28 @@ import com.tv.launcher.custom.core.model.theme.*
 
 class ThemeArchiveReaderTest {
     @Test
+    fun `exports legacy compositions as v2 and extended layouts as v3 without losing fields`() {
+        val legacy = ThemeComposition(listOf(ThemeBlock(ThemeBlockType.TITLE)), topBar = TopBarConfig(), rail = RailConfig())
+        val layouts = listOf(
+            legacy to 2,
+            legacy.copy(rail = RailConfig(position = RailPosition.RIGHT)) to 3,
+            legacy.copy(rail = RailConfig(position = RailPosition.BOTTOM, glass = true)) to 3,
+            legacy.copy(topBar = TopBarConfig(position = TopBarPosition.BOTTOM)) to 3,
+            legacy.copy(topBar = TopBarConfig(glass = true)) to 3,
+            legacy.copy(widgets = listOf(ThemeWidget(ThemeWidgetType.CLOCK))) to 3
+        )
+        layouts.forEach { (composition, version) ->
+            val archive = ThemeArchiveReader.read(ThemeArchiveWriter.write(LauncherAppearance(ThemeId.WEBOS), null, composition))
+            val root = kotlinx.serialization.json.Json.parseToJsonElement(archive.manifest) as kotlinx.serialization.json.JsonObject
+            assertEquals(version.toString(), root.getValue("formatVersion").toString())
+            assertEquals(composition, ThemeManifestValidator.parse(archive.manifest, emptySet()).composition)
+            if (version == 3) assertThrows(ThemeArchiveException::class.java) {
+                ThemeManifestValidator.parse(archive.manifest.replace("\"formatVersion\":3", "\"formatVersion\":2"), emptySet())
+            }
+        }
+    }
+
+    @Test
     fun `lee manifiesto requerido y activos con extension soportada`() {
         val archive = zip(
             "manifest.json" to "{\"formatVersion\":1}".toByteArray(),

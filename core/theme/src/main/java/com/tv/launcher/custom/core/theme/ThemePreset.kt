@@ -149,8 +149,34 @@ object ThemePresets {
                 cardStyle = CardStyle.GLASS, cornerRadius = 20, labelPos = LabelPos.BELOW)
         )))
 
+    private val liquidGlass = ThemePreset("macOS Liquid Glass", ThemeComposition(
+        bgStyle = BgStyle.LANDSCAPE, bgColor = c(0xFF183753),
+        padding = 0, topPadding = 76, spacing = 16,
+        rail = RailConfig(position = RailPosition.LEFT, style = RailStyle.ICONS_LABELS,
+            items = "Inicio,Apps,Buscar,Ajustes,Personalización",
+            width = 170, floating = true, cornerRadius = 16, textSize = 12, glass = true,
+            topInset = 91, height = 326),
+        widgets = listOf(
+            ThemeWidget(ThemeWidgetType.CLOCK, WidgetAnchor.TOP_START, width = 180, height = 80,
+                overlay = true, offsetX = 20, offsetY = 14, glass = false),
+            ThemeWidget(ThemeWidgetType.WEATHER, WidgetAnchor.TOP_END, width = 140, height = 100,
+                overlay = true, offsetX = 34, offsetY = 76)
+        ),
+        blocks = listOf(
+            ThemeBlock(T.HERO, appContent = AppContent.FEATURED_APP, itemHeight = 182,
+                cardStyle = CardStyle.GLASS, cornerRadius = 18, endInset = 186),
+            ThemeBlock(T.TITLE, text = "APLICACIONES", textSize = 12),
+            ThemeBlock(T.APPS_ROW, maxItems = 12, itemHeight = 62, aspect = CardAspect.SQUARE,
+                cardStyle = CardStyle.GLASS, cornerRadius = 14, labelPos = LabelPos.BELOW, spacing = 24,
+                align = BlockAlign.START, textSize = 10),
+            ThemeBlock(T.TITLE, text = "Todas las aplicaciones", textSize = 16),
+            ThemeBlock(T.APPS_GRID, maxItems = 24, columns = 7, itemHeight = 62, aspect = CardAspect.SQUARE,
+                cardStyle = CardStyle.GLASS, cornerRadius = 14, labelPos = LabelPos.BELOW)
+        )
+    ))
+
     val all: List<ThemePreset> get() =
-        listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, freeMyTv, minimal, minimalClock, cleanGrid)
+        listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, freeMyTv, minimal, minimalClock, cleanGrid, liquidGlass)
 
     fun byName(name: String): ThemeComposition? = all.firstOrNull { it.name == name }?.composition
 }

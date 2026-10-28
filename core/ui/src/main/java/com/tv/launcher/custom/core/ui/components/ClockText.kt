@@ -10,6 +10,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Text
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.platform.LocalContext
 import android.text.format.DateFormat
 import kotlinx.coroutines.delay
@@ -41,7 +42,8 @@ fun ClockText(
     modifier: Modifier = Modifier,
     color: Color = Color.Unspecified,
     use24Hour: Boolean? = null,
-    showDate: Boolean = false
+    showDate: Boolean = false,
+    stackedDate: Boolean = false
 ) {
     val context = LocalContext.current
     val time by produceState(initialValue = LocalTime.now()) {
@@ -49,6 +51,16 @@ fun ClockText(
             value = LocalTime.now()
             delay(MINUTE_MILLIS - System.currentTimeMillis() % MINUTE_MILLIS)
         }
+    }
+    val dateTime = LocalDateTime.of(java.time.LocalDate.now(), time)
+    if (stackedDate) {
+        Column(modifier) {
+            Text(formatClockText(dateTime, use24Hour ?: DateFormat.is24HourFormat(context), false, Locale.getDefault()),
+                fontSize = fontSize, fontWeight = FontWeight.Thin, color = color, maxLines = 1)
+            if (showDate) Text(dateTime.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault())),
+                fontSize = fontSize * 0.22f, color = color.copy(alpha = 0.85f), maxLines = 1)
+        }
+        return
     }
     Text(
         text = formatClockText(

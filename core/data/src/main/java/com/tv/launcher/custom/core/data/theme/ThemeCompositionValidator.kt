@@ -38,7 +38,7 @@ object ThemeCompositionValidator {
         ThemeBlockType.MEDIA_ROW to "media_row",
         ThemeBlockType.NAV_ROW to "nav_row"
     )
-    private val COMPOSITION_KEYS = setOf("blocks", "spacing", "padding", "topPadding", "bgColor", "bgColor2", "bgStyle", "topBar", "rail")
+    private val COMPOSITION_KEYS = setOf("widgets", "blocks", "spacing", "padding", "topPadding", "bgColor", "bgColor2", "bgStyle", "topBar", "rail")
     private val COMMON_KEYS = setOf("align", "padding", "bgColor", "bgAlpha", "textColor", "placement", "appContent", "startInset", "endInset")
 
     fun parse(raw: String): ThemeComposition {
@@ -74,11 +74,36 @@ object ThemeCompositionValidator {
             bgStyle = obj?.optionalEnum<BgStyle>("bgStyle"),
             topBar = obj?.get("topBar")?.let(::parseTopBar),
             rail = obj?.get("rail")?.let(::parseRail),
-            topPadding = obj?.optionalInt("topPadding", 0..96)
+            topPadding = obj?.optionalInt("topPadding", 0..96),
+            widgets = obj?.get("widgets")?.let(::parseWidgets) ?: emptyList()
         )
     }
 
     // ───────────── Bloques ─────────────
+
+    private fun parseWidgets(element: JsonElement): List<ThemeWidget> {
+        val values = element as? JsonArray ?: throw ThemeArchiveException("Widgets must be an array")
+        if (values.size > 4) throw ThemeArchiveException("At most four internal widgets are supported")
+        return values.map { value ->
+            val item = value as? JsonObject ?: throw ThemeArchiveException("Widget must be an object")
+            item.checkKeys(setOf("type"), setOf("anchor", "width", "height", "showDate", "use24Hour", "overlay", "offsetX", "offsetY", "glass"), "Invalid widget fields")
+            val type = item.optionalEnum<ThemeWidgetType>("type") ?: throw ThemeArchiveException("Widget type required")
+            ThemeWidget(
+                type = type,
+                anchor = item.optionalEnum<WidgetAnchor>("anchor") ?: WidgetAnchor.TOP_END,
+                width = item.optionalInt("width", 100..400) ?: 320,
+                height = item.optionalInt("height", 60..240) ?: 200,
+                overlay = item.optionalBoolean("overlay") ?: false,
+                glass = item.optionalBoolean("glass") ?: true,
+                offsetX = item.optionalInt("offsetX", 0..360) ?: 0,
+                offsetY = item.optionalInt("offsetY", 0..360) ?: 0,
+                showDate = item.optionalBoolean("showDate") ?: true,
+                use24Hour = item.optionalBoolean("use24Hour") ?: true
+            )
+        }.also { widgets ->
+            if (widgets.map { it.anchor }.distinct().size != widgets.size) throw ThemeArchiveException("Widget anchors must be unique")
+        }
+    }
 
     private fun parseBlock(element: JsonElement): ThemeBlock {
         val item = element as? JsonObject ?: throw ThemeArchiveException("Composition block must be an object")
@@ -97,7 +122,7 @@ object ThemeCompositionValidator {
             ThemeBlockType.SPACER -> setOf("placement")
             ThemeBlockType.TITLE -> COMMON_KEYS + setOf("text", "textSize", "align")
             ThemeBlockType.HERO -> COMMON_KEYS + setOf(
-                "text", "subtitle", "buttonText", "textSize", "itemHeight", "cornerRadius", "imageAsset"
+                "text", "subtitle", "buttonText", "textSize", "itemHeight", "cornerRadius", "imageAsset", "cardStyle"
             )
             ThemeBlockType.CHIPS_ROW -> COMMON_KEYS + setOf(
                 "text", "textSize", "spacing", "itemHeight", "cornerRadius", "multicolor", "focusStyle", "focusScale"
@@ -178,11 +203,13 @@ object ThemeCompositionValidator {
         val o = element as? JsonObject ?: throw ThemeArchiveException("Top bar must be an object")
         o.checkKeys(
             emptySet(),
-            setOf("style", "tabs", "logo", "showSearch", "showSettings", "showClock", "align", "textColor", "bgColor", "bgAlpha"),
+            setOf("glass", "position", "style", "tabs", "logo", "showSearch", "showSettings", "showClock", "align", "textColor", "bgColor", "bgAlpha"),
             "Invalid top bar fields"
         )
         val d = TopBarConfig()
         return TopBarConfig(
+            position = o.optionalEnum<TopBarPosition>("position") ?: d.position,
+            glass = o.optionalBoolean("glass") ?: false,
             style = o.optionalEnum<TopBarStyle>("style") ?: d.style,
             tabs = if ("tabs" in o) o.optionalString("tabs", 80) else d.tabs,
             logo = o.optionalString("logo", 20),
@@ -200,11 +227,15 @@ object ThemeCompositionValidator {
         val o = element as? JsonObject ?: throw ThemeArchiveException("Rail must be an object")
         o.checkKeys(
             emptySet(),
-            setOf("style", "items", "width", "floating", "cornerRadius", "textSize", "textColor", "bgColor", "bgAlpha", "showProfile", "overlay", "logo", "bottomItems", "circular", "appShortcutCount"),
+            setOf("glass", "position", "style", "items", "width", "floating", "cornerRadius", "textSize", "textColor", "bgColor", "bgAlpha", "showProfile", "overlay", "logo", "bottomItems", "circular", "appShortcutCount", "topInset", "height"),
             "Invalid rail fields"
         )
         val d = RailConfig()
         return RailConfig(
+            topInset = o.optionalInt("topInset", 0..360) ?: 0,
+            height = o.optionalInt("height", 120..600),
+            position = o.optionalEnum<RailPosition>("position") ?: d.position,
+            glass = o.optionalBoolean("glass") ?: false,
             style = o.optionalEnum<RailStyle>("style") ?: d.style,
             items = if ("items" in o) o.optionalString("items", 120) else d.items,
             width = o.optionalInt("width", 56..360),
@@ -226,6 +257,20 @@ object ThemeCompositionValidator {
     // ───────────── Exportación ─────────────
 
     fun encode(composition: ThemeComposition): JsonObject = buildJsonObject {
+        if (composition.widgets.isNotEmpty()) put("widgets", buildJsonArray {
+            composition.widgets.forEach { widget -> add(buildJsonObject {
+                put("type", widget.type.name)
+                put("anchor", widget.anchor.name)
+                put("width", widget.width)
+                put("height", widget.height)
+                put("showDate", widget.showDate)
+                put("use24Hour", widget.use24Hour)
+                if (widget.overlay) put("overlay", true)
+                if (!widget.glass) put("glass", false)
+                if (widget.offsetX != 0) put("offsetX", widget.offsetX)
+                if (widget.offsetY != 0) put("offsetY", widget.offsetY)
+            }) }
+        })
         put("blocks", JsonArray(composition.blocks.map(::encodeBlock)))
         composition.spacing?.let { put("spacing", it) }
         composition.padding?.let { put("padding", it) }
@@ -282,6 +327,8 @@ object ThemeCompositionValidator {
     }
 
     private fun encodeTopBar(c: TopBarConfig): JsonObject = buildJsonObject {
+        if (c.glass) put("glass", true)
+        if (c.position != TopBarPosition.TOP) put("position", c.position.name)
         put("style", c.style.name)
         put("tabs", c.tabs.orEmpty())
         c.logo?.let { put("logo", it) }
@@ -295,6 +342,10 @@ object ThemeCompositionValidator {
     }
 
     private fun encodeRail(c: RailConfig): JsonObject = buildJsonObject {
+        if (c.topInset != 0) put("topInset", c.topInset)
+        c.height?.let { put("height", it) }
+        if (c.glass) put("glass", true)
+        if (c.position != RailPosition.LEFT) put("position", c.position.name)
         if (c.overlay) put("overlay", true)
         put("style", c.style.name)
         put("items", c.items.orEmpty())

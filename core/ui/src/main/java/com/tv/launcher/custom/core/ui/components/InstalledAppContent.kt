@@ -68,23 +68,27 @@ private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier, co
 
 @Composable
 fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modifier = Modifier,
-    interactive: Boolean = true, contentScale: Float = 1f) {
+    interactive: Boolean = true, contentScale: Float = 1f, glass: Boolean = false) {
     val palette = LocalLauncherStyle.current.palette
     val openApps = LocalOpenApps.current
-    val shape = RoundedCornerShape((8 * contentScale).dp)
+    val shape = RoundedCornerShape(((if (glass) 18 else 8) * contentScale).dp)
     Surface(
         onClick = { if (interactive) { if (app == null) openApps() else onLaunch(app.packageName) } },
         modifier = modifier.then(Modifier.focusProperties { canFocus = interactive }),
         shape = ClickableSurfaceDefaults.shape(shape),
-        colors = ClickableSurfaceDefaults.colors(containerColor = palette.surface, focusedContainerColor = palette.surface),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = if (glass) Color.Transparent else palette.surface, focusedContainerColor = if (glass) Color.Transparent else palette.surface),
+        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(if (glass) 1.dp else 2.dp, Color.White), shape = shape)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f))))) {
-            if (app != null) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding((20 * contentScale).dp), contentScale)
-            Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.5f).padding((28 * contentScale).dp), verticalArrangement = Arrangement.spacedBy((12 * contentScale).dp)) {
+        Box(Modifier.fillMaxSize().then(if (glass) Modifier.glassSurfaceBackground(shape) else Modifier.background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f)))))) {
+            if (app != null && !glass) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding((20 * contentScale).dp), contentScale)
+            Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(if (glass) 1f else 0.5f).padding((28 * contentScale).dp), verticalArrangement = Arrangement.spacedBy(((if (glass) 8 else 12) * contentScale).dp)) {
+                if (glass) Text(stringResource(R.string.featured_installed_app), color = Color.White.copy(alpha = 0.72f), fontSize = (10 * contentScale).sp)
                 Text(app?.label ?: stringResource(R.string.launcher_apps), color = Color.White, fontSize = (28 * contentScale).sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(stringResource(R.string.open_installed_app), color = Color(0xFFE0E0E0), fontSize = (16 * contentScale).sp)
+                Text(stringResource(R.string.open_installed_app), color = Color(0xFFE0E0E0), fontSize = ((if (glass) 12 else 16) * contentScale).sp)
+                if (glass) Text(stringResource(R.string.open_app_action),
+                    Modifier.background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(50)).padding(horizontal = (18 * contentScale).dp, vertical = (8 * contentScale).dp),
+                    color = Color.White, fontSize = (12 * contentScale).sp)
             }
         }
     }
@@ -117,6 +121,12 @@ fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: 
 @Composable
 private fun InstalledAppHeroPreview() = LauncherTheme(ThemeId.WEBOS) {
     InstalledAppHero(AppEntry("preview.app", "Aplicación"), {}, Modifier.fillMaxSize())
+}
+
+@Preview(name = "Glass featured installed app", widthDp = 572, heightDp = 182)
+@Composable
+private fun InstalledAppHeroGlassPreview() = LauncherTheme(ThemeId.APPLE_TV) {
+    InstalledAppHero(AppEntry("preview.app", "Aplicación"), {}, Modifier.fillMaxSize(), interactive = false, glass = true)
 }
 
 @Preview(widthDp = 800, heightDp = 150)

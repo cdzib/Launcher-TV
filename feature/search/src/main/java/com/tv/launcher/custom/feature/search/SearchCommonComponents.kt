@@ -1,5 +1,7 @@
 package com.tv.launcher.custom.feature.search
 
+import com.tv.launcher.custom.core.ui.components.sectionSurfaceBackground
+
 import com.tv.launcher.custom.core.ui.components.AppIcon
 
 import androidx.compose.foundation.BorderStroke
@@ -93,7 +95,7 @@ internal fun SearchField(
     val style = LocalLauncherStyle.current
     val palette = style.palette
     val focusVariant = variant == SearchFieldVariant.FOCUS
-    val shape = RoundedCornerShape(if (focusVariant) (style.tileRadius * .55f).coerceAtLeast(10.dp) else 12.dp)
+    val shape = RoundedCornerShape(if (style.declarativeSurfaces) style.tileRadius else if (focusVariant) (style.tileRadius * .55f).coerceAtLeast(10.dp) else 12.dp)
     var focused by remember { mutableStateOf(false) }
     val borderColor = if (focused) palette.accent else palette.onMuted.copy(alpha = if (focusVariant) .26f else .24f)
     val fieldBackground = if (focusVariant) palette.background.copy(alpha = .52f) else palette.surface
@@ -115,7 +117,7 @@ internal fun SearchField(
     Row(
         modifier
             .heightIn(min = if (focusVariant) 58.dp else 52.dp)
-            .background(fieldBackground, shape)
+            .then(if (style.glassSurfaces) Modifier.sectionSurfaceBackground(shape) else Modifier.background(fieldBackground, shape))
             .border(if (focused) 2.dp else 1.dp, borderColor, shape)
             .padding(start = if (focusVariant) 18.dp else 12.dp, end = if (focusVariant) 12.dp else 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -264,7 +266,8 @@ internal fun SearchAppTile(
 ) {
     val palette = LocalLauncherStyle.current.palette
     var focused by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(radius)
+    val style = LocalLauncherStyle.current
+    val shape = RoundedCornerShape(if (style.declarativeSurfaces) style.tileRadius else radius)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
             onClick = onClick,
@@ -280,8 +283,8 @@ internal fun SearchAppTile(
                 },
             shape = ClickableSurfaceDefaults.shape(shape),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = containerColor,
-                focusedContainerColor = focusedContainerColor
+                containerColor = if (style.glassSurfaces) Color.Transparent else containerColor,
+                focusedContainerColor = if (style.glassSurfaces) Color.Transparent else focusedContainerColor
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
             border = ClickableSurfaceDefaults.border(
@@ -293,7 +296,7 @@ internal fun SearchAppTile(
                 focusedBorder = Border(BorderStroke(3.dp, focusedBorderColor), shape = shape)
             )
         ) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(Modifier.fillMaxSize().sectionSurfaceBackground(shape), contentAlignment = Alignment.Center) {
                 SearchAppIcon(app, Modifier.size(height * .625f))
             }
         }
@@ -325,7 +328,8 @@ internal fun SearchKey(
     focusRequester: FocusRequester? = null,
     content: @Composable () -> Unit
 ) {
-    val shape = RoundedCornerShape(radius)
+    val style = LocalLauncherStyle.current
+    val shape = RoundedCornerShape(if (style.declarativeSurfaces) style.tileRadius else radius)
     val keyModifier = modifier.height(height).then(
         if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier
     )
@@ -334,10 +338,10 @@ internal fun SearchKey(
         modifier = keyModifier,
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            focusedContainerColor = focusedContainerColor,
-            focusedContentColor = focusedContentColor
+            containerColor = if (style.glassSurfaces) Color.Transparent else containerColor,
+            contentColor = if (style.glassSurfaces) style.palette.onBackground else contentColor,
+            focusedContainerColor = if (style.glassSurfaces) Color.Transparent else focusedContainerColor,
+            focusedContentColor = if (style.glassSurfaces) style.palette.onBackground else focusedContentColor
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
         border = ClickableSurfaceDefaults.border(
@@ -345,22 +349,23 @@ internal fun SearchKey(
             focusedBorder = Border(BorderStroke(2.dp, focusedBorderColor), shape = shape)
         )
     ) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { content() }
+        Box(Modifier.fillMaxSize().sectionSurfaceBackground(shape), contentAlignment = Alignment.Center) { content() }
     }
 }
 
 @Composable
 internal fun SearchChip(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalLauncherStyle.current.palette
-    val shape = RoundedCornerShape(999.dp)
+    val style = LocalLauncherStyle.current
+    val shape = RoundedCornerShape(if (style.declarativeSurfaces) style.tileRadius else 999.dp)
     Surface(
         onClick = onClick,
         modifier = modifier.heightIn(min = 34.dp),
         shape = ClickableSurfaceDefaults.shape(shape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = palette.background.copy(alpha = .42f),
+            containerColor = if (style.glassSurfaces) Color.Transparent else palette.background.copy(alpha = .42f),
             contentColor = palette.onMuted,
-            focusedContainerColor = palette.background.copy(alpha = .42f),
+            focusedContainerColor = if (style.glassSurfaces) Color.Transparent else palette.background.copy(alpha = .42f),
             focusedContentColor = palette.onBackground
         ),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f),
@@ -369,7 +374,7 @@ internal fun SearchChip(label: String, onClick: () -> Unit, modifier: Modifier =
             focusedBorder = Border(BorderStroke(3.dp, palette.onBackground), shape = shape)
         )
     ) {
-        Box(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.sectionSurfaceBackground(shape).padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
             Text(label, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
@@ -419,15 +424,16 @@ internal fun SearchMeta(countText: String, modeText: String, modifier: Modifier 
 
 @Composable
 internal fun SearchHero(app: AppEntry?, onLaunch: () -> Unit, modifier: Modifier = Modifier) {
-    val palette = LocalLauncherStyle.current.palette
-    val shape = RoundedCornerShape(16.dp)
+    val style = LocalLauncherStyle.current
+    val palette = style.palette
+    val shape = RoundedCornerShape(if (style.declarativeSurfaces) style.tileRadius else 16.dp)
     Row(
         modifier.fillMaxWidth()
             .height(72.dp)
-            .background(
+            .then(if (style.glassSurfaces) Modifier.sectionSurfaceBackground(shape) else Modifier.background(
                 Brush.linearGradient(listOf(lerp(palette.surface, palette.background, .32f), palette.surface)),
                 shape
-            )
+            ))
             .border(1.dp, Color.White.copy(alpha = .08f), shape)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

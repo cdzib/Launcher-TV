@@ -31,7 +31,9 @@ data class LauncherStyle(
     val tileRadius: Dp,
     val focusScale: Float,
     val layout: LayoutKind,
-    @StringRes val nameRes: Int
+    @StringRes val nameRes: Int,
+    val glassSurfaces: Boolean = false,
+    val declarativeSurfaces: Boolean = false
 )
 
 private val Light = Color(0xFFF2F4F7)

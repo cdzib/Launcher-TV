@@ -1,0 +1,27 @@
+<resources>
+    <string name="editor_widget_offset_x">Margen horizontal del ancla</string>
+    <string name="editor_widget_offset_y">Margen superior / vertical</string>
+    <string name="editor_rail_fixed_height">Altura de menú fija</string>
+    <string name="featured_installed_app">APLICACIÓN DESTACADA</string>
+    <string name="open_app_action">OK  Abrir</string>
+    <string name="editor_navigation_position">Posición de navegación</string>
+    <string name="editor_position_left">Izquierda</string>
+    <string name="editor_position_right">Derecha</string>
+    <string name="editor_position_top">Arriba</string>
+    <string name="editor_position_bottom">Abajo</string>
+    <string name="editor_layered_glass">Cristal en capas</string>
+    <string name="editor_widgets">Widgets internos</string>
+    <string name="editor_add_clock">Añadir reloj</string>
+    <string name="editor_add_weather">Añadir clima</string>
+    <string name="editor_remove_widget">Quitar widget %1$d</string>
+    <string name="editor_widget_anchor">Anclaje</string>
+    <string name="editor_anchor_top_start">Arriba · inicio</string>
+    <string name="editor_anchor_top_end">Arriba · final</string>
+    <string name="editor_anchor_bottom_start">Abajo · inicio</string>
+    <string name="editor_anchor_bottom_end">Abajo · final</string>
+    <string name="editor_widget_width">Ancho del widget</string>
+    <string name="editor_widget_height">Alto del widget</string>
+    <string name="editor_widget_date">Mostrar fecha</string>
+    <string name="editor_widget_24_hour">Formato de 24 horas</string>
+    <string name="editor_widget_weather_hint">El clima usa la ciudad configurada en Ajustes de clima. No incluye pronóstico.</string>
+</resources>

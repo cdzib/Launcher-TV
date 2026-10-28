@@ -1,5 +1,7 @@
 package com.tv.launcher.custom
 
+import com.tv.launcher.custom.core.ui.components.sectionSurfaceBackground
+
 import android.widget.Toast
 import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
@@ -274,7 +276,7 @@ fun LauncherScreen(
             assetUris = activeThemeAssetUris
         )
     }
-    LaunchedEffect(appearance?.installedThemeId, themeLibraryRefresh) {
+    LaunchedEffect(appearance?.installedThemeId, appearance?.themeId, themeLibraryRefresh) {
         val themeId = appearance?.installedThemeId
         val active = if (themeId == null) null else withContext(Dispatchers.IO) { installedThemeStore.load(themeId) }
         activeComposition = active?.composition
@@ -406,7 +408,23 @@ fun LauncherScreen(
     }
     LauncherTheme(appearance ?: LauncherAppearance(state.themeId)) {
         val palette = LocalLauncherStyle.current.palette
-        CompositionLocalProvider(LocalBackgroundImageVisible provides (backgroundBitmap != null)) {
+         CompositionLocalProvider(
+             LocalBackgroundImageVisible provides (backgroundBitmap != null),
+             com.tv.launcher.custom.core.ui.components.LocalCanvasWeatherContent provides
+                 (if (weatherState.settings.isEnabled && weatherState.settings.city != null) { widgetModifier ->
+                     WeatherSummaryCard(
+                         state = weatherState,
+                         backgroundColor = androidx.compose.ui.graphics.Color.Transparent,
+                         contentColor = androidx.compose.ui.graphics.Color.White,
+                         mutedColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f),
+                         onIntent = onIntent,
+                         onOpenSettings = { showWeatherSettings = true },
+                         modifier = widgetModifier,
+                          stackActions = true,
+                          compact = true
+                     )
+                 } else null)
+         ) {
         Box(Modifier.fillMaxSize().background(palette.background)) {
           if (backgroundBitmap != null) Image(backgroundBitmap!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
           Surface(
@@ -449,7 +467,7 @@ fun LauncherScreen(
                               }
                           }
                       },
-                     LocalShortcutPackages provides state.appearance.shortcuts,
+                      LocalShortcutPackages provides state.appearance.shortcuts,
                      LocalSetShortcut provides { slot, packageName -> onIntent(HomeIntent.SelectShortcut(slot, packageName)) }
                   ) {
                     Box(Modifier.fillMaxSize()) {
@@ -470,7 +488,8 @@ fun LauncherScreen(
                    }
             }
            }
-           if (section == LauncherSection.HOME && state !is HomeUiState.Loading && state !is HomeUiState.Error) {
+            if (section == LauncherSection.HOME && state !is HomeUiState.Loading && state !is HomeUiState.Error &&
+                activeComposition?.widgets?.none { it.type == com.tv.launcher.custom.core.model.theme.ThemeWidgetType.WEATHER } != false) {
                val palette = LocalLauncherStyle.current.palette
                WeatherSummaryCard(
                    state = weatherState,
@@ -846,9 +865,9 @@ private fun AppDrawerScreen(
                         onClick = { onLaunch(app.packageName) },
                         shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(cardShape),
                         colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
-                            containerColor = style.palette.surface,
+                            containerColor = if (style.glassSurfaces) androidx.compose.ui.graphics.Color.Transparent else style.palette.surface,
                             contentColor = style.palette.onBackground,
-                            focusedContainerColor = style.palette.surface,
+                            focusedContainerColor = if (style.glassSurfaces) androidx.compose.ui.graphics.Color.Transparent else style.palette.surface,
                             focusedContentColor = style.palette.onBackground
                         ),
                         scale = androidx.tv.material3.ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
@@ -861,7 +880,7 @@ private fun AppDrawerScreen(
                             .then(if (app == focusTarget) Modifier.focusRequester(firstAppFocus) else Modifier)
                             .onFocusChanged { if (it.isFocused) focusedPackage = app.packageName }
                     ) {
-                        Column(Modifier.fillMaxWidth().height(152.dp).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
+                        Column(Modifier.fillMaxWidth().height(152.dp).sectionSurfaceBackground(cardShape).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically)) {
                             if (isPreview) Text(app.label.take(2))
                             else AppIcon(app.packageName, Modifier.size(56.dp))
                             Text(app.label, maxLines = 2, minLines = 2, fontSize = 16.sp,
@@ -898,7 +917,8 @@ private val BUNDLED_DEMO_THEMES = listOf(
     "free-my-tv-editable.zip" to "Free My TV · Editable",
     "launch-dock-demo.zip" to "Launch Dock",
     "side-stream-demo.zip" to "Side Stream",
-    "nova-minimal-premium.zip" to "NOVA · Minimal Premium"
+    "nova-minimal-premium.zip" to "NOVA · Minimal Premium",
+    "macos-liquid-glass.zip" to "macOS Liquid Glass"
 )
 
 @Composable

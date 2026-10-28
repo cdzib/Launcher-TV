@@ -8,6 +8,51 @@ import org.junit.Test
 
 class ThemeCompositionValidatorTest {
     @Test
+    fun `round trips internal widgets and rejects unsafe sizing or duplicate anchors`() {
+        val raw = """{"blocks":[{"type":"title"}],"widgets":[{"type":"CLOCK","anchor":"TOP_END","width":240,"height":120,"showDate":true,"use24Hour":false}]}"""
+        val composition = ThemeCompositionValidator.parse(raw)
+        assertEquals(composition, ThemeCompositionValidator.parse(ThemeCompositionValidator.encode(composition).toString()))
+        listOf(raw.replace("240", "900"), raw.replace("CLOCK", "EXTERNAL"),
+            raw.replace("}]}", "},{\"type\":\"WEATHER\",\"anchor\":\"TOP_END\"}]}")).forEach {
+            assertThrows(ThemeArchiveException::class.java) { ThemeCompositionValidator.parse(it) }
+        }
+    }
+
+    @Test
+    fun `bounds widget count types fields and primitive values`() {
+        val invalidWidgets = listOf(
+            "{}", "[null]", "[{\"type\":\"WEATHER\",\"url\":\"https://example.com\"}]",
+            "[{\"type\":\"CLOCK\",\"height\":0}]", "[{\"type\":\"CLOCK\",\"showDate\":\"true\"}]",
+            "[{\"type\":\"CLOCK\",\"anchor\":\"CENTER\"}]",
+            (1..5).joinToString(prefix = "[", postfix = "]") { "{\"type\":\"CLOCK\"}" }
+        )
+        invalidWidgets.forEach { widgets ->
+            assertThrows(ThemeArchiveException::class.java) {
+                ThemeCompositionValidator.parse("{\"blocks\":[{\"type\":\"title\"}],\"widgets\":$widgets}")
+            }
+        }
+    }
+
+    @Test
+    fun `preserves dock and bottom bar positions`() {
+        val composition = ThemeCompositionValidator.parse(
+            """{"blocks":[{"type":"title"}],"rail":{"position":"BOTTOM"},"topBar":{"position":"BOTTOM"}}"""
+        )
+        assertEquals("BOTTOM", composition.rail!!.position.name)
+        assertEquals("BOTTOM", composition.topBar!!.position.name)
+        assertEquals(composition, ThemeCompositionValidator.parse(ThemeCompositionValidator.encode(composition).toString()))
+    }
+
+    @Test
+    fun `rejects unsupported navigation positions`() {
+        listOf("\"rail\":{\"position\":\"TOP\"}", "\"topBar\":{\"position\":\"LEFT\"}").forEach { field ->
+            assertThrows(ThemeArchiveException::class.java) {
+                ThemeCompositionValidator.parse("{\"blocks\":[{\"type\":\"title\"}],$field}")
+            }
+        }
+    }
+
+    @Test
     fun `acepta composicion declarativa permitida`() {
         val composition = ThemeCompositionValidator.parse(
             """[{"type":"title"},{"type":"apps_row","maxItems":8},{"type":"spacer","weight":2}]"""
