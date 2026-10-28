@@ -84,11 +84,12 @@ private val ASPECTS = listOf("16:9" to CardAspect.WIDE, "Cuadrada 1:1" to CardAs
 private val CARD_STYLES = listOf("Sólida" to CardStyle.FILLED, "Blanca" to CardStyle.LIGHT, "Cristal" to CardStyle.GLASS, "Contorno" to CardStyle.OUTLINE, "Sin fondo" to CardStyle.NONE)
 private val LABELS = listOf("Oculto" to LabelPos.NONE, "Debajo" to LabelPos.BELOW, "Dentro" to LabelPos.INSIDE)
 private val FOCUSES = listOf("Zoom" to FocusStyle.SCALE, "Borde" to FocusStyle.BORDER, "Zoom + borde" to FocusStyle.SCALE_BORDER, "Brillo" to FocusStyle.GLOW)
-private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL, "Paisaje original" to BgStyle.LANDSCAPE)
+private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL, "Paisaje original" to BgStyle.LANDSCAPE, "Colinas" to BgStyle.RIDGES)
 private val TOP_STYLES = listOf("Pestañas píldora" to TopBarStyle.TABS_PILL, "Pestañas texto" to TopBarStyle.TABS_TEXT, "Íconos" to TopBarStyle.ICONS, "Mínima" to TopBarStyle.MINIMAL)
 private val RAIL_STYLES = listOf("Lista" to RailStyle.LIST, "Íconos" to RailStyle.ICONS, "Íconos + texto" to RailStyle.ICONS_LABELS)
 private val PLACEMENTS = listOf("Contenido" to BlockPlacement.CONTENT, "Anclado abajo" to BlockPlacement.BOTTOM)
 private val YESNO = listOf("No" to false, "Sí" to true)
+private val CLOCK_FORMATS = listOf<Pair<String, Boolean?>>("Sistema" to null, "24 horas" to true, "12 horas" to false)
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
@@ -219,6 +220,8 @@ internal fun TopBarInspector(composition: ThemeComposition, onChange: (ThemeComp
     }
     Field("Logo / texto de marca", cfg.logo.orEmpty(), "Ej. Roku", 20) { v -> up { it.copy(logo = v.ifBlank { null }) } }
     Picker("Reloj", YESNO, cfg.showClock) { v -> up { it.copy(showClock = v) } }
+    Picker("Formato de reloj", CLOCK_FORMATS, cfg.use24Hour) { v -> up { it.copy(use24Hour = v) } }
+    Picker("Fecha", YESNO, cfg.showDate) { v -> up { it.copy(showDate = v) } }
     Picker("Botón buscar", YESNO, cfg.showSearch) { v -> up { it.copy(showSearch = v) } }
     Picker("Botón ajustes", YESNO, cfg.showSettings) { v -> up { it.copy(showSettings = v) } }
     ColorRow("Color de texto", cfg.textColor) { v -> up { it.copy(textColor = v) } }
@@ -316,12 +319,13 @@ internal fun BlockInspector(
     }
 
     when (type) {
-        ThemeBlockType.TITLE -> {
+        ThemeBlockType.CLOCK, ThemeBlockType.TITLE -> {
             Field("Texto (vacío = nombre del diseño)", block.text.orEmpty(), "Título", 60) { v -> update { it.copy(text = v.ifBlank { null }) } }
             Stepper("Tamaño de texto", block.rTextSize(), 12, 72, 2, "sp") { v -> update { it.copy(textSize = v) } }
             Picker("Alineación", ALIGNS, block.rAlign()) { v -> update { it.copy(align = v) } }
             Stepper("Relleno", block.rPadding(), 0, 64, 4, "dp") { v -> update { it.copy(padding = v) } }
             ColorRow("Color del título", block.textColor) { v -> update { it.copy(textColor = v) } }
+            if (type == ThemeBlockType.CLOCK) Picker("Formato de reloj", CLOCK_FORMATS, block.use24Hour) { v -> update { it.copy(use24Hour = v) } }
         }
         ThemeBlockType.SPACER -> Stepper("Altura", block.weight ?: 1, 1, 12) { v -> update { it.copy(weight = v) } }
         ThemeBlockType.HERO -> {
@@ -558,6 +562,7 @@ private fun ThemeComposition.updateAt(index: Int, transform: (ThemeBlock) -> The
 }
 
 internal fun ThemeBlockType.defaultBlock(): ThemeBlock = when (this) {
+    ThemeBlockType.CLOCK -> ThemeBlock(this, textSize = 64)
     ThemeBlockType.TITLE -> ThemeBlock(this)
     ThemeBlockType.APPS_ROW -> ThemeBlock(this, maxItems = 8)
     ThemeBlockType.APPS_GRID -> ThemeBlock(this, maxItems = 12, columns = 4)
@@ -572,6 +577,7 @@ internal fun ThemeBlockType.defaultBlock(): ThemeBlock = when (this) {
 
 @Composable
 internal fun ThemeBlockType.label(): String = when (this) {
+    ThemeBlockType.CLOCK -> "Reloj y fecha"
     ThemeBlockType.TITLE -> stringResource(R.string.custom_layout_title_block)
     ThemeBlockType.APPS_ROW -> stringResource(R.string.custom_layout_apps_row)
     ThemeBlockType.APPS_GRID -> stringResource(R.string.custom_layout_apps_grid)

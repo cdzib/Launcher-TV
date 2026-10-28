@@ -415,8 +415,8 @@ fun LauncherScreen(
                      WeatherSummaryCard(
                          state = weatherState,
                          backgroundColor = androidx.compose.ui.graphics.Color.Transparent,
-                         contentColor = androidx.compose.ui.graphics.Color.White,
-                         mutedColor = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f),
+                          contentColor = LocalLauncherStyle.current.palette.onBackground,
+                          mutedColor = LocalLauncherStyle.current.palette.onBackground.copy(alpha = 0.8f),
                          onIntent = onIntent,
                          onOpenSettings = { showWeatherSettings = true },
                          modifier = widgetModifier,
@@ -781,14 +781,22 @@ fun LauncherScreen(
                             Text(stringResource(R.string.theme_update_confirmation))
                         }
                         val backgroundColor = (pending.manifest.background as? ThemeManifestBackground.Solid)?.argb
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().weight(1f),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = androidx.tv.material3.SurfaceDefaults.colors(
-                                containerColor = backgroundColor?.let { androidx.compose.ui.graphics.Color(it.toInt()) }
-                                    ?: LocalLauncherStyle.current.palette.surface
+                        androidx.compose.foundation.layout.Box(
+                            Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(20.dp))
+                        ) {
+                            com.tv.launcher.custom.feature.settings.SettingsThemePreview(
+                                appearance = LauncherAppearance(
+                                    themeId = pending.manifest.layout,
+                                    accentColorArgb = pending.manifest.accentArgb,
+                                    backgroundColorArgb = backgroundColor
+                                ),
+                                composition = pending.manifest.composition,
+                                name = pending.manifest.name,
+                                apps = successState?.apps ?: persistentListOf(),
+                                data = compositionPreviewData,
+                                modifier = Modifier.fillMaxSize()
                             )
-                        ) { }
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                             Button(onClick = { pendingTheme = null }) { Text(stringResource(R.string.cancel)) }
                             Button(onClick = {
@@ -907,6 +915,10 @@ private fun AppDrawerScreenPreview() = LauncherTheme(ThemeId.ROKU) {
 }
 
 private val BUNDLED_DEMO_THEMES = listOf(
+    "orbita.zip" to "Órbita",
+    "bruma.zip" to "Bruma",
+    "horizonte.zip" to "Horizonte",
+    "estudio.zip" to "Estudio",
     "webos-editable.zip" to "webOS · Editable",
     "android-tv-editable.zip" to "Android TV · Editable",
     "google-tv-editable.zip" to "Google TV · Editable",

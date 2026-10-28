@@ -3,7 +3,7 @@ package com.tv.launcher.custom.core.theme
 import com.tv.launcher.custom.core.model.theme.*
 import com.tv.launcher.custom.core.model.theme.ThemeBlockType as T
 
-data class ThemePreset(val name: String, val composition: ThemeComposition)
+data class ThemePreset(val name: String, val composition: ThemeComposition, val backgroundAssetName: String? = null)
 
 /**
  * Declarative themes rendered by CompositionCanvas and exportable as ZIP.
@@ -175,8 +175,80 @@ object ThemePresets {
         )
     ))
 
+    private val orbita = ThemePreset("Órbita", ThemeComposition(
+        bgStyle = BgStyle.RADIAL, bgColor = c(0xFF17212B), bgColor2 = c(0xFF344757),
+        padding = 44, spacing = 24,
+        widgets = listOf(ThemeWidget(ThemeWidgetType.WEATHER, WidgetAnchor.BOTTOM_END, width = 180, height = 80,
+            overlay = true, offsetX = 44, offsetY = 24, glass = false)),
+        topBar = TopBarConfig(style = TopBarStyle.TABS_TEXT, logo = "Órbita", tabs = "Inicio,Apps,Buscar",
+            showSearch = false, showClock = false, textColor = c(0xFFE8EDF1)),
+        blocks = listOf(
+            ThemeBlock(T.SPACER, weight = 3),
+            ThemeBlock(T.CLOCK, textSize = 72, align = BlockAlign.CENTER, textColor = c(0xFFE8EDF1),
+                use24Hour = true),
+            ThemeBlock(T.SPACER, weight = 2),
+            ThemeBlock(T.APPS_ROW, maxItems = 5, itemHeight = 68, aspect = CardAspect.SQUARE,
+                cornerRadius = 60, cardStyle = CardStyle.FILLED,
+                textColor = c(0xFFE8EDF1), labelPos = LabelPos.BELOW, spacing = 28,
+                align = BlockAlign.CENTER, focusStyle = FocusStyle.BORDER)
+        )))
+
+    private val bruma = ThemePreset("Bruma", ThemeComposition(
+        bgStyle = BgStyle.SOLID, bgColor = c(0xFFE9EDF0), padding = 40, topPadding = 64, spacing = 16,
+        widgets = listOf(ThemeWidget(ThemeWidgetType.WEATHER, WidgetAnchor.BOTTOM_END, width = 180, height = 80,
+            overlay = true, offsetX = 40, offsetY = 56, glass = false)),
+        rail = RailConfig(items = "Inicio,Apps,Buscar,Ajustes", logo = "Bruma", width = 156,
+            textSize = 14, cornerRadius = 12, textColor = c(0xFF253846), bgColor = c(0xFFE9EDF0)),
+        blocks = listOf(
+            ThemeBlock(T.TITLE, text = "Todo en su lugar.", textSize = 32, textColor = c(0xFF253846)),
+            ThemeBlock(T.TITLE, text = "Tus aplicaciones favoritas, sin distracciones.", textSize = 14, textColor = c(0xFF465C6A)),
+            ThemeBlock(T.SPACER, weight = 1),
+            ThemeBlock(T.APPS_ROW, maxItems = 5, itemHeight = 72, aspect = CardAspect.SQUARE,
+                cornerRadius = 16, cardStyle = CardStyle.LIGHT, textColor = c(0xFF253846),
+                labelPos = LabelPos.BELOW, spacing = 20, align = BlockAlign.START, focusStyle = FocusStyle.BORDER),
+            ThemeBlock(T.SPACER, weight = 1),
+            ThemeBlock(T.CLOCK, textSize = 48, align = BlockAlign.START, textColor = c(0xFF253846),
+                use24Hour = true)
+        )))
+
+    private val horizonte = ThemePreset("Horizonte", ThemeComposition(
+        bgStyle = BgStyle.RIDGES, bgColor = c(0xFF173B48), padding = 44, topPadding = 32, spacing = 20,
+        topBar = TopBarConfig(style = TopBarStyle.MINIMAL, logo = "Horizonte", tabs = "",
+            showClock = true, showDate = true, use24Hour = true, showSettings = false, showSearch = false),
+        rail = RailConfig(position = RailPosition.BOTTOM, items = "Inicio,Apps,Buscar,Ajustes",
+            style = RailStyle.LIST, width = 144, textSize = 14, floating = true, glass = true, cornerRadius = 16,
+            textColor = c(0xFFE8EDF1), bgColor = c(0xFF102D39), bgAlpha = 85),
+        blocks = listOf(
+            ThemeBlock(T.TITLE, text = "Un espacio para desconectar.", textSize = 32),
+            ThemeBlock(T.TITLE, text = "Elige qué quieres abrir.", textSize = 14),
+            ThemeBlock(T.SPACER, weight = 2),
+            ThemeBlock(T.FAVORITES_ROW, text = "Favoritos", textSize = 14, maxItems = 5,
+                itemHeight = 60, aspect = CardAspect.SQUARE, cornerRadius = 12,
+                textColor = c(0xFFE8EDF1), cardStyle = CardStyle.GLASS, labelPos = LabelPos.BELOW,
+                align = BlockAlign.START, spacing = 24),
+            ThemeBlock(T.APPS_ROW, text = "Todas las aplicaciones", textSize = 14, maxItems = 6,
+                itemHeight = 56, aspect = CardAspect.SQUARE, cornerRadius = 12,
+                textColor = c(0xFFE8EDF1), cardStyle = CardStyle.GLASS, labelPos = LabelPos.BELOW,
+                align = BlockAlign.START, spacing = 24)
+        )), backgroundAssetName = "ridges_landscape.png")
+
+    private val estudio = ThemePreset("Estudio", ThemeComposition(
+        bgStyle = BgStyle.SOLID, bgColor = c(0xFF202120), padding = 44, topPadding = 32, spacing = 16,
+        rail = RailConfig(position = RailPosition.RIGHT, items = "Inicio,Apps,Buscar,Ajustes", logo = "Estudio",
+            width = 156, textSize = 14, bgColor = c(0xFF292C27), textColor = c(0xFFEBECE6)),
+        topBar = TopBarConfig(style = TopBarStyle.MINIMAL, logo = "Tu biblioteca", tabs = "",
+            showSearch = false, showSettings = false, use24Hour = true, textColor = c(0xFFE5E8DD)),
+        blocks = listOf(
+            ThemeBlock(T.TITLE, text = "Lo esencial, a mano.", textSize = 32, textColor = c(0xFFE5E8DD)),
+            ThemeBlock(T.TITLE, text = "Una colección sencilla de tus aplicaciones.", textSize = 14, textColor = c(0xFFB7BEAA)),
+            ThemeBlock(T.APPS_GRID, maxItems = 8, columns = 4, itemHeight = 104,
+                aspect = CardAspect.CLASSIC, cornerRadius = 12,
+                textColor = c(0xFFE5E8DD), labelPos = LabelPos.INSIDE, spacing = 20, focusStyle = FocusStyle.BORDER)
+        )))
+
     val all: List<ThemePreset> get() =
-        listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, freeMyTv, minimal, minimalClock, cleanGrid, liquidGlass)
+        listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, freeMyTv, minimal, minimalClock, cleanGrid, liquidGlass,
+            orbita, bruma, horizonte, estudio)
 
     fun byName(name: String): ThemeComposition? = all.firstOrNull { it.name == name }?.composition
 }

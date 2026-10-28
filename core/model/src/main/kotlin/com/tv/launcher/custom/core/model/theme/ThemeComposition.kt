@@ -1,13 +1,13 @@
 package com.tv.launcher.custom.core.model.theme
 
-enum class ThemeBlockType { TITLE, APPS_ROW, APPS_GRID, FAVORITES_ROW, SPACER, HERO, CHIPS_ROW, RECENTS_ROW, MEDIA_ROW, NAV_ROW }
+enum class ThemeBlockType { TITLE, APPS_ROW, APPS_GRID, FAVORITES_ROW, SPACER, HERO, CHIPS_ROW, RECENTS_ROW, MEDIA_ROW, NAV_ROW, CLOCK }
 enum class BlockPlacement { CONTENT, BOTTOM }
 enum class BlockAlign { START, CENTER, END }
 enum class CardAspect(val ratio: Float) { WIDE(16f / 9f), SQUARE(1f), PORTRAIT(2f / 3f), CLASSIC(4f / 3f), ULTRAWIDE(21f / 9f) }
 enum class CardStyle { FILLED, LIGHT, GLASS, OUTLINE, NONE }
 enum class LabelPos { NONE, BELOW, INSIDE }
 enum class FocusStyle { SCALE, BORDER, SCALE_BORDER, GLOW }
-enum class BgStyle { SOLID, VERTICAL, DIAGONAL, RADIAL, LANDSCAPE }
+enum class BgStyle { SOLID, VERTICAL, DIAGONAL, RADIAL, LANDSCAPE, RIDGES }
 enum class TopBarStyle { TABS_PILL, TABS_TEXT, ICONS, MINIMAL }
 enum class RailStyle { LIST, ICONS, ICONS_LABELS }
 enum class RailPosition { LEFT, RIGHT, BOTTOM }
@@ -60,7 +60,8 @@ data class ThemeBlock(
     val endInset: Int? = null,
     val itemOffset: Int? = null,
     val showSystemSettings: Boolean? = null,
-    val showPersonalization: Boolean? = null
+    val showPersonalization: Boolean? = null,
+    val use24Hour: Boolean? = null
 ) {
     fun usesCardLayout() = type == ThemeBlockType.APPS_ROW || type == ThemeBlockType.APPS_GRID ||
         type == ThemeBlockType.FAVORITES_ROW || type == ThemeBlockType.RECENTS_ROW || type == ThemeBlockType.MEDIA_ROW
@@ -103,6 +104,8 @@ data class TopBarConfig(
     val showSearch: Boolean = true,
     val showSettings: Boolean = true,
     val showClock: Boolean = true,
+    val showDate: Boolean = false,
+    val use24Hour: Boolean? = null,
     val align: BlockAlign = BlockAlign.START,
     val textColor: Int? = null,
     val bgColor: Int? = null,
@@ -145,6 +148,8 @@ data class ThemeComposition(
 )
 
 fun ThemeComposition.requiresFormatV3(): Boolean =
+    topBar?.showDate == true || topBar?.use24Hour != null || blocks.any { it.type == ThemeBlockType.CLOCK } ||
+        blocks.any { it.use24Hour != null } || bgStyle == BgStyle.RIDGES ||
     widgets.isNotEmpty() || bgStyle == BgStyle.LANDSCAPE || rail?.glass == true || topBar?.glass == true ||
         rail?.position?.let { it != RailPosition.LEFT } == true ||
         topBar?.position?.let { it != TopBarPosition.TOP } == true ||

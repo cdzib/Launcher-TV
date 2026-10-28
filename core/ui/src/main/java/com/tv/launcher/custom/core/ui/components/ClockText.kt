@@ -32,8 +32,12 @@ fun formatClockText(
     val timePattern = if (use24Hour) "HH:mm" else "h:mm a"
     val time = dateTime.format(DateTimeFormatter.ofPattern(timePattern, locale))
     if (!showDate) return time
-    val date = dateTime.format(DateTimeFormatter.ofPattern("EEE, MMM d", locale))
-    return "$time · $date"
+    return "$time · ${formatFullDate(dateTime, locale)}"
+}
+
+fun formatFullDate(dateTime: LocalDateTime, locale: Locale): String {
+    val date = dateTime.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", locale))
+    return date.replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 }
 
 @Composable
@@ -57,7 +61,7 @@ fun ClockText(
         Column(modifier) {
             Text(formatClockText(dateTime, use24Hour ?: DateFormat.is24HourFormat(context), false, Locale.getDefault()),
                 fontSize = fontSize, fontWeight = FontWeight.Thin, color = color, maxLines = 1)
-            if (showDate) Text(dateTime.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault())),
+            if (showDate) Text(formatFullDate(dateTime, Locale.getDefault()),
                 fontSize = fontSize * 0.22f, color = color.copy(alpha = 0.85f), maxLines = 1)
         }
         return

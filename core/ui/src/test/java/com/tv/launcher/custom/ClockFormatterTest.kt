@@ -21,6 +21,6 @@ class ClockFormatterTest {
 
     @Test
     fun `appends localized date only when requested`() {
-        assertEquals("17:04 · Sun, Oct 25", formatClockText(dateTime, true, true, Locale.US))
+        assertEquals("17:04 · Sunday, 25 October", formatClockText(dateTime, true, true, Locale.US))
     }
 }

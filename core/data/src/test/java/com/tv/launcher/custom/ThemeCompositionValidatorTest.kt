@@ -7,6 +7,19 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ThemeCompositionValidatorTest {
+    @Test fun `clock blocks round trip with bounded size and declarative ridges`() {
+        val raw = """{"bgStyle":"RIDGES","topBar":{"showDate":true,"use24Hour":true},"blocks":[{"type":"clock","textSize":72,"align":"CENTER","textColor":"#FFE8EDF1","use24Hour":true}]}"""
+        val composition = ThemeCompositionValidator.parse(raw)
+        assertEquals(true, composition.topBar?.use24Hour)
+        assertEquals(true, composition.blocks.single().use24Hour)
+        assertEquals(true, composition.requiresFormatV3())
+        assertEquals(composition, ThemeCompositionValidator.parse(ThemeCompositionValidator.encode(composition).toString()))
+        listOf(raw.replace("72", "0"), raw.replace("72", "999"), raw.replace("CENTER", "OUTSIDE"),
+            raw.replace("true", "\"true\"")).forEach {
+            assertThrows(ThemeArchiveException::class.java) { ThemeCompositionValidator.parse(it) }
+        }
+    }
+
     @Test
     fun `round trips internal widgets and rejects unsafe sizing or duplicate anchors`() {
         val raw = """{"blocks":[{"type":"title"}],"widgets":[{"type":"CLOCK","anchor":"TOP_END","width":240,"height":120,"showDate":true,"use24Hour":false}]}"""

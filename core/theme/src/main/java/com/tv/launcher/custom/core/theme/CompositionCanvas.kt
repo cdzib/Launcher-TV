@@ -161,18 +161,23 @@ fun CompositionCanvas(
     val personalizationInRail = composition.rail != null && (composition.topBar == null ||
         (!settingsInTopBar && composition.rail?.items.orEmpty().split(',').any(::isSettingsLabel)))
     BoxWithConstraints(modifier) {
-        val landscape = if (composition.bgStyle == BgStyle.LANDSCAPE) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape) else null
-        val frost = if (landscape != null) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost) else null
+        val landscape = when (composition.bgStyle) {
+            BgStyle.LANDSCAPE -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape)
+            BgStyle.RIDGES -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.ridges_landscape)
+            else -> null
+        }
+        val frost = if (composition.bgStyle == BgStyle.RIDGES) landscape else if (landscape != null) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost) else null
         var canvasOrigin by remember { mutableStateOf(Offset.Zero) }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         val k = (maxWidth.value / REFERENCE_WIDTH_DP).coerceAtLeast(if (interactive) 0.5f else 0.05f)
         val widgetHeightLimit = maxHeight * 0.24f
         CompositionLocalProvider(LocalCanvasScale provides k,
+            LocalLauncherStyle provides composition.resolveSectionStyle(LocalLauncherStyle.current),
             LocalGlassBackdrop provides frost?.let { GlassBackdrop(it, canvasOrigin, canvasSize) }) {
             val c1 = composition.bgColor?.let { Color(it) } ?: palette.background
             val c2 = composition.bgColor2?.let { Color(it) } ?: c1
             val brush = when (composition.bgStyle ?: BgStyle.SOLID) {
-                BgStyle.SOLID, BgStyle.LANDSCAPE -> SolidColor(c1)
+                BgStyle.SOLID, BgStyle.LANDSCAPE, BgStyle.RIDGES -> SolidColor(c1)
                 BgStyle.VERTICAL -> Brush.verticalGradient(listOf(c1, c2))
                 BgStyle.DIAGONAL -> Brush.linearGradient(listOf(c1, c2))
                 BgStyle.RADIAL -> Brush.radialGradient(listOf(c2, c1))
@@ -284,22 +289,24 @@ fun CompositionCanvas(
                 }
                    if (sectionContent == null) composition.widgets.filter { it.overlay }.forEach { widget ->
                        val weather = LocalCanvasWeatherContent.current
-                       if (widget.type != ThemeWidgetType.WEATHER || weather != null) {
-                           val atEnd = widget.anchor == WidgetAnchor.TOP_END || widget.anchor == WidgetAnchor.BOTTOM_END
-                           val atBottom = widget.anchor == WidgetAnchor.BOTTOM_START || widget.anchor == WidgetAnchor.BOTTOM_END
-                           Box(Modifier.align(when (widget.anchor) {
-                               WidgetAnchor.TOP_START -> Alignment.TopStart
-                               WidgetAnchor.TOP_END -> Alignment.TopEnd
-                               WidgetAnchor.BOTTOM_START -> Alignment.BottomStart
-                               WidgetAnchor.BOTTOM_END -> Alignment.BottomEnd
-                           }).offset(x = (if (atEnd) -widget.offsetX else widget.offsetX).d(),
-                               y = (if (atBottom) -widget.offsetY else widget.offsetY).d())
-                               .size(widget.width.d(), widget.height.d())
-                               .then(if (widget.glass) Modifier.glassSurfaceBackground() else Modifier)) {
-                               if (widget.type == ThemeWidgetType.CLOCK) SharedClockText(
-                                   modifier = Modifier.align(Alignment.CenterStart), fontSize = 52.s(), color = Color.White,
-                                   use24Hour = widget.use24Hour, showDate = widget.showDate, stackedDate = true
-                               ) else weather?.invoke(Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+                       val atEnd = widget.anchor == WidgetAnchor.TOP_END || widget.anchor == WidgetAnchor.BOTTOM_END
+                       val atBottom = widget.anchor == WidgetAnchor.BOTTOM_START || widget.anchor == WidgetAnchor.BOTTOM_END
+                       Box(Modifier.align(when (widget.anchor) {
+                           WidgetAnchor.TOP_START -> Alignment.TopStart
+                           WidgetAnchor.TOP_END -> Alignment.TopEnd
+                           WidgetAnchor.BOTTOM_START -> Alignment.BottomStart
+                           WidgetAnchor.BOTTOM_END -> Alignment.BottomEnd
+                       }).offset(x = (if (atEnd) -widget.offsetX else widget.offsetX).d(),
+                           y = (if (atBottom) -widget.offsetY else widget.offsetY).d())
+                           .size(widget.width.d(), widget.height.d())
+                           .then(if (widget.glass) Modifier.glassSurfaceBackground() else Modifier)) {
+                           if (widget.type == ThemeWidgetType.CLOCK) SharedClockText(
+                               modifier = Modifier.align(Alignment.CenterStart), fontSize = 52.s(), color = Color.White,
+                               use24Hour = widget.use24Hour, showDate = widget.showDate, stackedDate = true
+                           ) else if (weather != null) {
+                               weather(Modifier.fillMaxSize().verticalScroll(rememberScrollState()))
+                           } else {
+                               WeatherWidgetPlaceholder(Modifier.fillMaxSize())
                            }
                        }
                    }
@@ -330,12 +337,27 @@ fun CompositionCanvas(
     }
 }
 
+@Composable
+private fun WeatherWidgetPlaceholder(modifier: Modifier) {
+    val palette = LocalLauncherStyle.current.palette
+    Column(modifier.padding(16.d()), verticalArrangement = Arrangement.Center) {
+        Text(
+            androidx.compose.ui.res.stringResource(com.tv.launcher.custom.core.ui.R.string.widget_weather_unconfigured),
+            color = palette.onBackground, fontSize = 13.s(), maxLines = 1
+        )
+        Text(
+            androidx.compose.ui.res.stringResource(com.tv.launcher.custom.core.ui.R.string.widget_weather_configure),
+            color = palette.onMuted, fontSize = 10.s(), maxLines = 1
+        )
+    }
+}
+
 // ───────────── Tile: superficie con foco configurable ─────────────
 
 @Composable
 private fun CanvasWidgets(widgets: List<ThemeWidget>, heightLimit: Dp) {
     val weatherContent = LocalCanvasWeatherContent.current
-    val visibleWidgets = widgets.filter { it.type != ThemeWidgetType.WEATHER || weatherContent != null }
+    val visibleWidgets = widgets
     if (visibleWidgets.isEmpty()) return
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.d(), vertical = 8.d())) {
         val availableWidth = maxWidth
@@ -354,7 +376,11 @@ private fun CanvasWidgets(widgets: List<ThemeWidget>, heightLimit: Dp) {
                             fontSize = 28.s(), color = Color.White,
                             use24Hour = widget.use24Hour, showDate = widget.showDate
                         )
-                        ThemeWidgetType.WEATHER -> weatherContent?.invoke(Modifier.fillMaxWidth())
+                        ThemeWidgetType.WEATHER -> if (weatherContent != null) {
+                            weatherContent(Modifier.fillMaxWidth())
+                        } else {
+                            WeatherWidgetPlaceholder(Modifier.fillMaxWidth())
+                        }
                     }
                 }
             }
@@ -449,6 +475,8 @@ private fun BlockView(
     ) {
         val heading = block.text?.takeIf { it.isNotBlank() }
         when (block.type) {
+            ThemeBlockType.CLOCK -> SharedClockText(fontSize = block.rTextSize().s(), color = textColor,
+                showDate = true, use24Hour = block.use24Hour, stackedDate = true)
             ThemeBlockType.TITLE -> Text(
                 heading ?: title,
                 Modifier.fillMaxWidth(),
@@ -483,7 +511,11 @@ private fun BlockView(
                         }
                     )
                 }
-                if (block.type == ThemeBlockType.APPS_GRID) {
+                if (block.usesCardLayout() && data.itemCount(block) == 0) {
+                    Text(androidx.compose.ui.res.stringResource(if (block.type == ThemeBlockType.FAVORITES_ROW)
+                        com.tv.launcher.custom.core.ui.R.string.theme_empty_favorites else com.tv.launcher.custom.core.ui.R.string.theme_empty_apps),
+                        fontSize = 14.s(), color = textColor.copy(alpha = .8f))
+                } else if (block.type == ThemeBlockType.APPS_GRID) {
                     CardsGrid(block, data, interactive, firstItemFocusRequester)
                 } else {
                     val rowAlignment = when (block.rAlign()) {
@@ -592,9 +624,10 @@ private fun AppCard(
                     Text(
                         data.label(block, index),
                         Modifier.align(Alignment.BottomStart).fillMaxWidth()
-                            .background(Color.Black.copy(alpha = 0.68f), RoundedCornerShape(bottomStart = block.rCorner().d(), bottomEnd = block.rCorner().d()))
-                            .padding(horizontal = 8.d(), vertical = 6.d()),
-                        fontSize = 12.s(), color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis
+                            .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))))
+                            .padding(start = 12.d(), end = 12.d(), top = 18.d(), bottom = 10.d()),
+                        fontSize = (block.textSize ?: 12).s(), fontWeight = FontWeight.Medium,
+                        color = Color.White, maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
             }
@@ -786,7 +819,9 @@ private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, on
             }
         }
         if (cfg.align != BlockAlign.END) Spacer(Modifier.weight(1f))
-        if (cfg.showClock) SharedClockText(fontSize = 18.s(), color = text)
+        if (cfg.showClock) SharedClockText(
+            fontSize = 18.s(), color = text, showDate = cfg.showDate, use24Hour = cfg.use24Hour
+        )
         if (topBarShowsSettings(cfg)) {
             GlyphButton("Ajustes", text, interactive) { data.onNavClick("Ajustes") }
         }

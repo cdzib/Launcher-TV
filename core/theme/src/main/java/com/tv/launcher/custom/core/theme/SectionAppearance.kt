@@ -25,7 +25,7 @@ internal fun ThemeComposition.resolveSectionStyle(base: LauncherStyle): Launcher
             onBackground = block.textColor?.let { Color(it) } ?: base.palette.onBackground,
             onMuted = if (block.rCardStyle() == CardStyle.GLASS)
                 (block.textColor?.let { Color(it) } ?: base.palette.onBackground).copy(alpha = .9f)
-                else base.palette.onMuted
+                 else block.textColor?.let { Color(it).copy(alpha = .7f) } ?: base.palette.onMuted
         )
     )
 }

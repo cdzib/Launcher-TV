@@ -40,7 +40,7 @@ import kotlinx.coroutines.withContext
 /** Render at launcher size, then scale the whole scene, including typography and native blocks. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun SettingsThemePreview(
+fun SettingsThemePreview(
     appearance: LauncherAppearance,
     composition: ThemeComposition?,
     name: String,

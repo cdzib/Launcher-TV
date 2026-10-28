@@ -36,7 +36,8 @@ object ThemeCompositionValidator {
         ThemeBlockType.CHIPS_ROW to "chips_row",
         ThemeBlockType.RECENTS_ROW to "recents_row",
         ThemeBlockType.MEDIA_ROW to "media_row",
-        ThemeBlockType.NAV_ROW to "nav_row"
+        ThemeBlockType.NAV_ROW to "nav_row",
+        ThemeBlockType.CLOCK to "clock"
     )
     private val COMPOSITION_KEYS = setOf("widgets", "blocks", "spacing", "padding", "topPadding", "bgColor", "bgColor2", "bgStyle", "topBar", "rail")
     private val COMMON_KEYS = setOf("align", "padding", "bgColor", "bgAlpha", "textColor", "placement", "appContent", "startInset", "endInset")
@@ -112,7 +113,7 @@ object ThemeCompositionValidator {
             ?: throw ThemeArchiveException("Unknown composition block")
 
         val required = when (type) {
-            ThemeBlockType.TITLE, ThemeBlockType.HERO, ThemeBlockType.CHIPS_ROW, ThemeBlockType.NAV_ROW -> setOf("type")
+            ThemeBlockType.CLOCK, ThemeBlockType.TITLE, ThemeBlockType.HERO, ThemeBlockType.CHIPS_ROW, ThemeBlockType.NAV_ROW -> setOf("type")
             ThemeBlockType.APPS_ROW, ThemeBlockType.FAVORITES_ROW, ThemeBlockType.RECENTS_ROW -> setOf("type", "maxItems")
             ThemeBlockType.APPS_GRID -> setOf("type", "columns", "maxItems")
             ThemeBlockType.SPACER -> setOf("type", "weight")
@@ -120,6 +121,7 @@ object ThemeCompositionValidator {
         }
         val optional = when (type) {
             ThemeBlockType.SPACER -> setOf("placement")
+            ThemeBlockType.CLOCK -> COMMON_KEYS + setOf("text", "textSize", "align", "use24Hour")
             ThemeBlockType.TITLE -> COMMON_KEYS + setOf("text", "textSize", "align")
             ThemeBlockType.HERO -> COMMON_KEYS + setOf(
                 "text", "subtitle", "buttonText", "textSize", "itemHeight", "cornerRadius", "imageAsset", "cardStyle"
@@ -191,7 +193,8 @@ object ThemeCompositionValidator {
             endInset = item.optionalInt("endInset", 0..360),
             itemOffset = item.optionalInt("itemOffset", 0..48),
             showSystemSettings = item.optionalBoolean("showSystemSettings"),
-            showPersonalization = item.optionalBoolean("showPersonalization")
+            showPersonalization = item.optionalBoolean("showPersonalization"),
+            use24Hour = item.optionalBoolean("use24Hour")
         )
     }
 
@@ -203,7 +206,7 @@ object ThemeCompositionValidator {
         val o = element as? JsonObject ?: throw ThemeArchiveException("Top bar must be an object")
         o.checkKeys(
             emptySet(),
-            setOf("glass", "position", "style", "tabs", "logo", "showSearch", "showSettings", "showClock", "align", "textColor", "bgColor", "bgAlpha"),
+            setOf("glass", "position", "style", "tabs", "logo", "showSearch", "showSettings", "showClock", "showDate", "use24Hour", "align", "textColor", "bgColor", "bgAlpha"),
             "Invalid top bar fields"
         )
         val d = TopBarConfig()
@@ -216,6 +219,8 @@ object ThemeCompositionValidator {
             showSearch = o.optionalBoolean("showSearch") ?: d.showSearch,
             showSettings = o.optionalBoolean("showSettings") ?: d.showSettings,
             showClock = o.optionalBoolean("showClock") ?: d.showClock,
+            showDate = o.optionalBoolean("showDate") ?: d.showDate,
+            use24Hour = o.optionalBoolean("use24Hour"),
             align = o.optionalEnum<BlockAlign>("align") ?: d.align,
             textColor = o.optionalColor("textColor"),
             bgColor = o.optionalColor("bgColor"),
@@ -302,6 +307,7 @@ object ThemeCompositionValidator {
         block.itemOffset?.let { put("itemOffset", it) }
         block.showSystemSettings?.let { put("showSystemSettings", it) }
         block.showPersonalization?.let { put("showPersonalization", it) }
+        block.use24Hour?.let { put("use24Hour", it) }
         block.aspect?.let { put("aspect", it.name) }
         block.cardStyle?.let { put("cardStyle", it.name) }
         block.labelPos?.let { put("labelPos", it.name) }
@@ -335,6 +341,8 @@ object ThemeCompositionValidator {
         put("showSearch", c.showSearch)
         put("showSettings", c.showSettings)
         put("showClock", c.showClock)
+        if (c.showDate) put("showDate", true)
+        c.use24Hour?.let { put("use24Hour", it) }
         put("align", c.align.name)
         c.textColor?.let { put("textColor", hex(it)) }
         c.bgColor?.let { put("bgColor", hex(it)) }

@@ -343,6 +343,7 @@ internal fun ThemeEditorIconButton(icon: ImageVector, description: String, modif
 private fun EditorDivider() = Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsColors.divider))
 
 private fun ThemeBlockType.editorIcon(): ImageVector = when (this) {
+    ThemeBlockType.CLOCK -> Icons.Default.Title
     ThemeBlockType.TITLE -> Icons.Default.Title
     ThemeBlockType.HERO -> Icons.Default.Image
     ThemeBlockType.SPACER -> Icons.Default.SpaceBar

@@ -24,4 +24,6 @@
     <string name="editor_widget_date">Mostrar fecha</string>
     <string name="editor_widget_24_hour">Formato de 24 horas</string>
     <string name="editor_widget_weather_hint">El clima usa la ciudad configurada en Ajustes de clima. No incluye pronóstico.</string>
+    <string name="widget_weather_unconfigured">Clima sin configurar</string>
+    <string name="widget_weather_configure">Ajustes · Clima</string>
 </resources>
