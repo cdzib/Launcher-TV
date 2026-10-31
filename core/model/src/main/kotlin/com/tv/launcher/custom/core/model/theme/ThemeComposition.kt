@@ -7,7 +7,7 @@ enum class CardAspect(val ratio: Float) { WIDE(16f / 9f), SQUARE(1f), PORTRAIT(2
 enum class CardStyle { FILLED, LIGHT, GLASS, OUTLINE, NONE }
 enum class LabelPos { NONE, BELOW, INSIDE }
 enum class FocusStyle { SCALE, BORDER, SCALE_BORDER, GLOW }
-enum class BgStyle { SOLID, VERTICAL, DIAGONAL, RADIAL, LANDSCAPE, RIDGES }
+enum class BgStyle { SOLID, VERTICAL, DIAGONAL, RADIAL, LANDSCAPE, RIDGES, WAVES }
 enum class TopBarStyle { TABS_PILL, TABS_TEXT, ICONS, MINIMAL }
 enum class RailStyle { LIST, ICONS, ICONS_LABELS }
 enum class RailPosition { LEFT, RIGHT, BOTTOM }
@@ -149,7 +149,7 @@ data class ThemeComposition(
 
 fun ThemeComposition.requiresFormatV3(): Boolean =
     topBar?.showDate == true || topBar?.use24Hour != null || blocks.any { it.type == ThemeBlockType.CLOCK } ||
-        blocks.any { it.use24Hour != null } || bgStyle == BgStyle.RIDGES ||
+        blocks.any { it.use24Hour != null } || bgStyle == BgStyle.RIDGES || bgStyle == BgStyle.WAVES ||
     widgets.isNotEmpty() || bgStyle == BgStyle.LANDSCAPE || rail?.glass == true || topBar?.glass == true ||
         rail?.position?.let { it != RailPosition.LEFT } == true ||
         topBar?.position?.let { it != TopBarPosition.TOP } == true ||

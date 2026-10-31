@@ -919,6 +919,7 @@ private val BUNDLED_DEMO_THEMES = listOf(
     "bruma.zip" to "Bruma",
     "horizonte.zip" to "Horizonte",
     "estudio.zip" to "Estudio",
+    "vidaa.zip" to "VIDAA",
     "webos-editable.zip" to "webOS · Editable",
     "android-tv-editable.zip" to "Android TV · Editable",
     "google-tv-editable.zip" to "Google TV · Editable",

@@ -16,7 +16,7 @@ class BundledThemeEditabilityTest {
         }.map { it.name }.toSet()
 
         assertEquals(setOf(
-            "orbita.zip", "bruma.zip", "horizonte.zip", "estudio.zip",
+            "orbita.zip", "bruma.zip", "horizonte.zip", "estudio.zip", "vidaa.zip",
             "launch-dock-demo.zip", "side-stream-demo.zip", "nova-minimal-premium.zip",
             "custom-layout-validation.zip", "webos-editable.zip", "android-tv-editable.zip",
             "google-tv-editable.zip", "fire-tv-editable.zip", "roku-editable.zip",

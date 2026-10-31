@@ -84,7 +84,7 @@ private val ASPECTS = listOf("16:9" to CardAspect.WIDE, "Cuadrada 1:1" to CardAs
 private val CARD_STYLES = listOf("Sólida" to CardStyle.FILLED, "Blanca" to CardStyle.LIGHT, "Cristal" to CardStyle.GLASS, "Contorno" to CardStyle.OUTLINE, "Sin fondo" to CardStyle.NONE)
 private val LABELS = listOf("Oculto" to LabelPos.NONE, "Debajo" to LabelPos.BELOW, "Dentro" to LabelPos.INSIDE)
 private val FOCUSES = listOf("Zoom" to FocusStyle.SCALE, "Borde" to FocusStyle.BORDER, "Zoom + borde" to FocusStyle.SCALE_BORDER, "Brillo" to FocusStyle.GLOW)
-private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL, "Paisaje original" to BgStyle.LANDSCAPE, "Colinas" to BgStyle.RIDGES)
+private val BG_STYLES = listOf("Sólido" to BgStyle.SOLID, "Degradado ↕" to BgStyle.VERTICAL, "Degradado ↘" to BgStyle.DIAGONAL, "Radial" to BgStyle.RADIAL, "Paisaje original" to BgStyle.LANDSCAPE, "Colinas" to BgStyle.RIDGES, "Ondas" to BgStyle.WAVES)
 private val TOP_STYLES = listOf("Pestañas píldora" to TopBarStyle.TABS_PILL, "Pestañas texto" to TopBarStyle.TABS_TEXT, "Íconos" to TopBarStyle.ICONS, "Mínima" to TopBarStyle.MINIMAL)
 private val RAIL_STYLES = listOf("Lista" to RailStyle.LIST, "Íconos" to RailStyle.ICONS, "Íconos + texto" to RailStyle.ICONS_LABELS)
 private val PLACEMENTS = listOf("Contenido" to BlockPlacement.CONTENT, "Anclado abajo" to BlockPlacement.BOTTOM)
@@ -146,7 +146,7 @@ internal fun GlobalInspector(composition: ThemeComposition, onChange: (ThemeComp
     Text(stringResource(R.string.editor_background_spacing), fontSize = 20.sp)
     Picker("Tipo de fondo", BG_STYLES, style) { onChange(composition.copy(bgStyle = it)) }
     ColorRow("Color de fondo", composition.bgColor) { onChange(composition.copy(bgColor = it)) }
-    if (style != BgStyle.SOLID && style != BgStyle.LANDSCAPE) ColorRow("Segundo color", composition.bgColor2) { onChange(composition.copy(bgColor2 = it)) }
+    if (style != BgStyle.SOLID && style != BgStyle.LANDSCAPE && style != BgStyle.WAVES) ColorRow("Segundo color", composition.bgColor2) { onChange(composition.copy(bgColor2 = it)) }
     Stepper("Espacio entre secciones", composition.spacing ?: 16, 0, 64, 2, "dp") { onChange(composition.copy(spacing = it)) }
     Stepper("Margen general", composition.padding ?: 24, 0, 96, 4, "dp") { onChange(composition.copy(padding = it)) }
     composition.topPadding?.let { value ->

@@ -164,9 +164,10 @@ fun CompositionCanvas(
         val landscape = when (composition.bgStyle) {
             BgStyle.LANDSCAPE -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape)
             BgStyle.RIDGES -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.ridges_landscape)
+            BgStyle.WAVES -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.vidaa_waves)
             else -> null
         }
-        val frost = if (composition.bgStyle == BgStyle.RIDGES) landscape else if (landscape != null) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost) else null
+        val frost = if (composition.bgStyle == BgStyle.RIDGES || composition.bgStyle == BgStyle.WAVES) landscape else if (landscape != null) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost) else null
         var canvasOrigin by remember { mutableStateOf(Offset.Zero) }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         val k = (maxWidth.value / REFERENCE_WIDTH_DP).coerceAtLeast(if (interactive) 0.5f else 0.05f)
@@ -177,7 +178,7 @@ fun CompositionCanvas(
             val c1 = composition.bgColor?.let { Color(it) } ?: palette.background
             val c2 = composition.bgColor2?.let { Color(it) } ?: c1
             val brush = when (composition.bgStyle ?: BgStyle.SOLID) {
-                BgStyle.SOLID, BgStyle.LANDSCAPE, BgStyle.RIDGES -> SolidColor(c1)
+                BgStyle.SOLID, BgStyle.LANDSCAPE, BgStyle.RIDGES, BgStyle.WAVES -> SolidColor(c1)
                 BgStyle.VERTICAL -> Brush.verticalGradient(listOf(c1, c2))
                 BgStyle.DIAGONAL -> Brush.linearGradient(listOf(c1, c2))
                 BgStyle.RADIAL -> Brush.radialGradient(listOf(c2, c1))

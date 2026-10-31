@@ -29,6 +29,12 @@ private fun MinimalistPresetPreview(@PreviewParameter(MinimalistPresetProvider::
     CompositionCanvas(preset.composition, PlaceholderCanvasData, Modifier.fillMaxSize())
 }
 
+@Preview(name = "VIDAA hero", widthDp = 960, heightDp = 540)
+@Composable
+private fun CompositionCanvasVidaaPreview() = LauncherTheme(ThemeId.WEBOS) {
+    CompositionCanvas(ThemePresets.byName("VIDAA")!!, PlaceholderCanvasData, Modifier.fillMaxSize())
+}
+
 @Preview(name = "Horizonte without favorites", widthDp = 960, heightDp = 540)
 @Composable
 private fun MinimalistEmptyFavoritesPreview() = LauncherTheme(ThemeId.WEBOS) {

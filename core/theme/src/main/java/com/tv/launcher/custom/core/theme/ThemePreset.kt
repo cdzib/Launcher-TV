@@ -232,6 +232,28 @@ object ThemePresets {
                 align = BlockAlign.START, spacing = 24)
         )), backgroundAssetName = "ridges_landscape.png")
 
+    private val vidaa = ThemePreset("VIDAA", ThemeComposition(
+        bgStyle = BgStyle.WAVES, bgColor = c(0xFF14081F), padding = 26, topPadding = 6, spacing = 12,
+        topBar = TopBarConfig(
+            style = TopBarStyle.ICONS, tabs = "Buscar,Apps,Notificaciones,Perfil",
+            showSearch = false, showSettings = true, showClock = true, showDate = false,
+            use24Hour = true, textColor = c(0xFFF4EFFA)
+        ),
+        blocks = listOf(
+            ThemeBlock(T.HERO, text = "VIDAA", subtitle = "Todo sobre ti", textSize = 44,
+                itemHeight = 132, bgAlpha = 0, textColor = c(0xFFFFFFFF),
+                padding = 8, align = BlockAlign.START),
+            ThemeBlock(T.APPS_GRID, maxItems = 14, columns = 7, aspect = CardAspect.WIDE,
+                cardStyle = CardStyle.LIGHT, cornerRadius = 4, labelPos = LabelPos.NONE,
+                spacing = 12, focusStyle = FocusStyle.SCALE_BORDER),
+            ThemeBlock(T.TITLE, text = "Top Picks", textSize = 18, textColor = c(0xFFEDE7F6)),
+            ThemeBlock(T.APPS_ROW, maxItems = 10, itemHeight = 76, aspect = CardAspect.WIDE,
+                cardStyle = CardStyle.GLASS, cornerRadius = 10, labelPos = LabelPos.BELOW,
+                spacing = 16, textSize = 11, textColor = c(0xFFEDE7F6),
+                focusStyle = FocusStyle.SCALE_BORDER)
+        )
+    ), backgroundAssetName = "vidaa_waves.png")
+
     private val estudio = ThemePreset("Estudio", ThemeComposition(
         bgStyle = BgStyle.SOLID, bgColor = c(0xFF202120), padding = 44, topPadding = 32, spacing = 16,
         rail = RailConfig(position = RailPosition.RIGHT, items = "Inicio,Apps,Buscar,Ajustes", logo = "Estudio",
@@ -248,7 +270,7 @@ object ThemePresets {
 
     val all: List<ThemePreset> get() =
         listOf(androidTv, googleTv, fireTv, roku, tizen, webOs, tvOs, freeMyTv, minimal, minimalClock, cleanGrid, liquidGlass,
-            orbita, bruma, horizonte, estudio)
+            orbita, bruma, horizonte, estudio, vidaa)
 
     fun byName(name: String): ThemeComposition? = all.firstOrNull { it.name == name }?.composition
 }
