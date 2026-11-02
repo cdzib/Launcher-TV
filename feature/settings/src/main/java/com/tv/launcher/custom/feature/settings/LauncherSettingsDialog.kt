@@ -25,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -192,11 +191,6 @@ private fun LauncherSettingsContent(
                             modifier = Modifier.fillMaxWidth().then(
                                 if (index == 0) Modifier.focusRequester(initialFocus) else Modifier
                             ).focusRequester(categoryFocus.getValue(item))
-                                 .onFocusChanged {
-                                     if (it.isFocused && category != item) {
-                                         category = item
-                                     }
-                                 }
                                  .focusProperties {
                                      right = if (item == category && item != SettingsCategory.HOME) contentFocus else FocusRequester.Default
                                      if (index > 0) up = categoryFocus.getValue(SettingsCategory.entries[index - 1])
@@ -256,7 +250,6 @@ private fun LauncherSettingsContent(
                                                      modifier = Modifier.fillMaxWidth()
                                                          .then(if (themeIndex == 0) Modifier.focusRequester(contentFocus) else Modifier)
                                                          .focusRequester(themeFocusRequesters.getValue(theme.id))
-                                                         .onFocusChanged { if (it.isFocused) selectedThemeId = theme.id }
                                                          .focusProperties {
                                                              if (themeIndex % columnCount == 0) left = categoryFocus.getValue(category)
                                                              else left = themeFocusRequesters.getValue(installedThemes[themeIndex - 1].id)

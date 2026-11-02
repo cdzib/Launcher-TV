@@ -22,7 +22,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -238,7 +237,7 @@ internal fun ThemeEditorContent(
                                         composition.blocks.forEachIndexed { index, block ->
                                             SettingsButton(block.text?.takeIf { it.isNotBlank() } ?: block.type.label(),
                                                 icon = block.type.editorIcon(), selected = index == safeSelected, enabled = !isSaving,
-                                                modifier = Modifier.fillMaxWidth().onFocusChanged { if (it.isFocused) selected = index },
+                                                modifier = Modifier.fillMaxWidth(),
                                                 onClick = { selected = index; inspectorTarget = index })
                                         }
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

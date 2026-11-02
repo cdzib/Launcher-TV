@@ -6,11 +6,16 @@ import com.tv.launcher.custom.core.ui.components.glassSurfaceBackground
 import com.tv.launcher.custom.core.ui.components.LocalCanvasWeatherContent
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,7 +53,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusProperties
-import com.tv.launcher.custom.core.ui.components.selectLauncherSectionOnFocus
+import androidx.compose.ui.graphics.graphicsLayer
+import com.tv.launcher.custom.core.ui.components.hasLauncherAction
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -104,6 +110,10 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.SurfaceDefaults
 import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
+
+import kotlinx.coroutines.delay
 
 private const val REFERENCE_WIDTH_DP = 960f
 private val LocalCanvasScale = compositionLocalOf { 1f }
@@ -140,6 +150,7 @@ object PlaceholderCanvasData : CanvasData {
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 fun CompositionCanvas(
     composition: ThemeComposition,
@@ -160,14 +171,22 @@ fun CompositionCanvas(
     } ?: false
     val personalizationInRail = composition.rail != null && (composition.topBar == null ||
         (!settingsInTopBar && composition.rail?.items.orEmpty().split(',').any(::isSettingsLabel)))
+    val hostBackground = com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage.current
+    val hasCustomBackground = com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible.current || hostBackground != null
     BoxWithConstraints(modifier) {
-        val landscape = when (composition.bgStyle) {
+        val landscape = if (hasCustomBackground) null else when (composition.bgStyle) {
             BgStyle.LANDSCAPE -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape)
             BgStyle.RIDGES -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.ridges_landscape)
             BgStyle.WAVES -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.vidaa_waves)
             else -> null
         }
-        val frost = if (composition.bgStyle == BgStyle.RIDGES || composition.bgStyle == BgStyle.WAVES) landscape else if (landscape != null) ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost) else null
+        val frost = when {
+            hostBackground != null -> hostBackground
+            hasCustomBackground -> null
+            composition.bgStyle == BgStyle.RIDGES || composition.bgStyle == BgStyle.WAVES -> landscape
+            landscape != null -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape_frost)
+            else -> null
+        }
         var canvasOrigin by remember { mutableStateOf(Offset.Zero) }
         var canvasSize by remember { mutableStateOf(IntSize.Zero) }
         val k = (maxWidth.value / REFERENCE_WIDTH_DP).coerceAtLeast(if (interactive) 0.5f else 0.05f)
@@ -184,7 +203,8 @@ fun CompositionCanvas(
                 BgStyle.RADIAL -> Brush.radialGradient(listOf(c2, c1))
             }
             val canvasBackground: Brush = if (
-                transparentBackground && composition.bgColor == null && composition.bgColor2 == null && composition.bgStyle == null
+                hasCustomBackground ||
+                (transparentBackground && composition.bgColor == null && composition.bgColor2 == null && composition.bgStyle == null)
             ) SolidColor(Color.Transparent) else brush
             Box(Modifier.fillMaxSize().background(canvasBackground).clipToBounds().onGloballyPositioned {
                 canvasOrigin = it.positionInRoot(); canvasSize = it.size
@@ -246,15 +266,35 @@ fun CompositionCanvas(
                                     ),
                                 verticalArrangement = Arrangement.spacedBy((composition.spacing ?: 16).d())
                             ) {
-                                contentBlocks.forEach { (i, block) ->
-                                    BlockView(
-                                        block = block,
-                                        title = title,
-                                        data = data,
-                                        interactive = interactive,
-                                        selected = i == selectedBlock,
-                                        firstItemFocusRequester = firstItemFocusRequester.takeIf { i == firstFocusableBlock }
-                                    )
+                                contentBlocks.forEachIndexed { order, (i, block) ->
+                                    val animateBlock = block.appContent != null || !block.usesCardLayout()
+                                    val entrance = remember(composition, i) {
+                                        Animatable(if (animateBlock) 0f else 1f)
+                                    }
+                                    LaunchedEffect(composition, i) {
+                                        if (animateBlock) {
+                                            entrance.snapTo(0f)
+                                            delay(order * 55L)
+                                            entrance.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 320f))
+                                        }
+                                    }
+                                    Box(Modifier.graphicsLayer {
+                                        val progress = entrance.value
+                                        alpha = progress
+                                        translationY = (1f - progress) * 28.dp.toPx()
+                                        val scale = 0.985f + 0.015f * progress
+                                        scaleX = scale
+                                        scaleY = scale
+                                    }) {
+                                        BlockView(
+                                            block = block,
+                                            title = title,
+                                            data = data,
+                                            interactive = interactive,
+                                            selected = i == selectedBlock,
+                                            firstItemFocusRequester = firstItemFocusRequester.takeIf { i == firstFocusableBlock }
+                                        )
+                                    }
                                 }
                             }
                             if (bottomBlocks.isNotEmpty()) {
@@ -355,6 +395,7 @@ private fun WeatherWidgetPlaceholder(modifier: Modifier) {
 
 // ───────────── Tile: superficie con foco configurable ─────────────
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun CanvasWidgets(widgets: List<ThemeWidget>, heightLimit: Dp) {
     val weatherContent = LocalCanvasWeatherContent.current
@@ -538,26 +579,58 @@ private fun BlockView(
 }
 
 @Composable
+private fun EnteringCard(
+    delayMillis: Long,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val progress = remember { Animatable(if (enabled) 0f else 1f) }
+    LaunchedEffect(enabled) {
+        if (enabled && progress.value < 1f) {
+            delay(delayMillis)
+            progress.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 360f))
+        }
+    }
+    Box(modifier.graphicsLayer {
+        val value = progress.value
+        alpha = value
+        translationY = (1f - value) * 16.dp.toPx()
+        val scale = 0.97f + 0.03f * value
+        scaleX = scale
+        scaleY = scale
+    }) { content() }
+}
+
+@Composable
 private fun CardsRow(block: ThemeBlock, data: CanvasData, interactive: Boolean, firstItemFocusRequester: FocusRequester?) {
     val base = block.itemOffset ?: 0
     val n = minOf(block.maxItems ?: 8, (data.itemCount(block) - base).coerceAtLeast(0))
     val padding = block.rPadding().d()
-    Row(
-        Modifier.then(if (interactive) Modifier.horizontalScroll(rememberScrollState()) else Modifier)
-            .padding(horizontal = padding, vertical = 8.d()),
+    val revealed = remember { mutableSetOf<Int>() }
+    LazyRow(
+        Modifier.fillMaxWidth().padding(horizontal = padding, vertical = 8.d()),
         horizontalArrangement = Arrangement.spacedBy(block.rSpacing().d())
     ) {
-        repeat(n) { index ->
-            AppCard(block, index + base, data, interactive, firstItemFocusRequester.takeIf { index == 0 })
+        items(n) { index ->
+            EnteringCard(
+                delayMillis = minOf(index, 8) * 35L,
+                enabled = index !in revealed
+            ) {
+                AppCard(block, index + base, data, interactive, firstItemFocusRequester.takeIf { index == 0 })
+            }
+            LaunchedEffect(index) { revealed += index }
         }
     }
 }
 
+    @SuppressLint("UnusedBoxWithConstraintsScope")
     @Composable
 private fun CardsGrid(block: ThemeBlock, data: CanvasData, interactive: Boolean, firstItemFocusRequester: FocusRequester?) {
     val cols = (block.columns ?: 4).coerceIn(2, 8)
     val base = block.itemOffset ?: 0
     val n = minOf(block.maxItems ?: 12, (data.itemCount(block) - base).coerceAtLeast(0))
+    val revealed = remember { mutableSetOf<Int>() }
     BoxWithConstraints {
         val cellWidth = ((maxWidth.value - (2 * block.rPadding()) - ((cols - 1) * block.rSpacing())) / cols).coerceAtLeast(1f)
         val computedHeight = (cellWidth / block.rAspect().ratio).toInt().coerceIn(32, 320)
@@ -569,7 +642,13 @@ private fun CardsGrid(block: ThemeBlock, data: CanvasData, interactive: Boolean,
             (0 until n).chunked(cols).forEach { rowIdx ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(block.rSpacing().d())) {
                     rowIdx.forEach { index ->
-                        AppCard(effectiveBlock, index + base, data, interactive, firstItemFocusRequester.takeIf { index == 0 })
+                        EnteringCard(
+                            delayMillis = minOf(index, 8) * 35L,
+                            enabled = index !in revealed
+                        ) {
+                            AppCard(effectiveBlock, index + base, data, interactive, firstItemFocusRequester.takeIf { index == 0 })
+                        }
+                        LaunchedEffect(index) { revealed += index }
                     }
                 }
             }
@@ -589,8 +668,9 @@ private fun AppCard(
     val h = block.rItemH()
     val w = (h * block.rAspect().ratio).toInt()
     val style = block.rCardStyle()
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
     val container = when (style) {
-        CardStyle.FILLED -> palette.surface
+        CardStyle.FILLED -> if (hasCustomBackground) Color.Transparent else palette.surface
         CardStyle.LIGHT -> Color.White
         CardStyle.GLASS -> Color.White.copy(alpha = 0.14f)
         CardStyle.OUTLINE, CardStyle.NONE -> Color.Transparent
@@ -650,7 +730,8 @@ private fun Hero(block: ThemeBlock, title: String, data: CanvasData, interactive
     val textColor = block.textColor?.let { Color(it) } ?: Color.White
     val a = block.rAlign()
     val glass = block.rCardStyle() == CardStyle.GLASS
-    val opaque = block.bgAlpha != 0 && !glass
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
+    val opaque = block.bgAlpha != 0 && !glass && !hasCustomBackground
     Box(
         Modifier.fillMaxWidth().height(block.rItemH().d()).clip(shape)
             .then(if (glass) Modifier.glassSurfaceBackground(shape) else if (opaque) Modifier.background(Brush.horizontalGradient(listOf(base, palette.background))) else Modifier)
@@ -681,7 +762,7 @@ private fun NavRow(block: ThemeBlock, data: CanvasData, interactive: Boolean, fi
     val palette = LocalLauncherStyle.current.palette
     val activeSection = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
     val labels = remember(block.text) {
-        block.text.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        block.text.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.filter(::hasLauncherAction)
     }
     val shape = RoundedCornerShape((block.cornerRadius ?: 50).d())
     Row(
@@ -713,20 +794,27 @@ private fun NavRow(block: ThemeBlock, data: CanvasData, interactive: Boolean, fi
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun Chips(block: ThemeBlock, data: CanvasData, interactive: Boolean) {
     val palette = LocalLauncherStyle.current.palette
     val labels = remember(block.text) {
-        (block.text ?: "Categoría 1,Categoría 2,Categoría 3").split(",").map { it.trim() }.filter { it.isNotEmpty() }.take(6)
+        (block.text ?: "Categoría 1,Categoría 2,Categoría 3").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            .filter(::hasLauncherAction).take(6)
     }
     if (labels.isEmpty()) return
     val textColor = block.textColor?.let { Color(it) } ?: Color.White
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
     BoxWithConstraints {
         val chipWidth = ((maxWidth - block.rSpacing().d() * (labels.size - 1)) / labels.size).coerceAtLeast(1.dp)
         Row(Modifier.fillMaxWidth().padding(vertical = 6.d()), horizontalArrangement = Arrangement.spacedBy(block.rSpacing().d())) {
             labels.forEachIndexed { i, label ->
-                val c = if (block.multicolor == true) CHIP_COLORS[i % CHIP_COLORS.size]
-                else block.bgColor?.let { Color(it) } ?: palette.surface
+                val c = when {
+                    block.multicolor == true -> CHIP_COLORS[i % CHIP_COLORS.size]
+                    block.bgColor != null -> block.bgColor?.let { Color(it) } ?: palette.surface
+                    hasCustomBackground -> Color.Transparent
+                    else -> palette.surface
+                }
                 Tile(
                     interactive, { data.onNavClick(label) }, Modifier.width(chipWidth).height(block.rItemH().d()),
                     RoundedCornerShape(block.rCorner().d()), c, textColor, block.rFocusStyle(), block.rFocusScale(), Color.White
@@ -781,7 +869,7 @@ private fun GlyphButton(label: String, color: Color, interactive: Boolean, onCli
     Tile(
         interactive,
         onClick,
-        Modifier.selectLauncherSectionOnFocus(label) { if (interactive) onClick() }.semantics { contentDescription = label },
+        Modifier.semantics { contentDescription = label },
         CircleShape,
         Color.Transparent,
         color,
@@ -816,7 +904,7 @@ private fun TopBar(cfg: TopBarConfig, data: CanvasData, interactive: Boolean, on
             renderedTabs.forEachIndexed { i, label ->
                 val destination = com.tv.launcher.custom.core.ui.components.resolveLauncherSection(label)
                 val selected = if (interactive && destination != null) destination == activeSection else i == current
-                TopTab(label, selected, cfg.style, text, muted, interactive, { current = i; if (interactive && destination != null) data.onNavClick(label) }) { data.onNavClick(label) }
+                TopTab(label, selected, cfg.style, text, muted, interactive, { current = i }) { data.onNavClick(label) }
             }
         }
         if (cfg.align != BlockAlign.END) Spacer(Modifier.weight(1f))
@@ -871,8 +959,8 @@ private fun TopTab(
 private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpenPersonalization: (() -> Unit)? = null, onOpenSystemSettingsFallback: (() -> Unit)? = null) {
     val activeSection = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
     val palette = LocalLauncherStyle.current.palette
-    val items = cfg.items.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
-    val bottomItems = cfg.bottomItems.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }
+    val items = cfg.items.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.filter(::hasLauncherAction)
+    val bottomItems = cfg.bottomItems.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.filter(::hasLauncherAction)
     var current by remember { mutableIntStateOf(0) }
     val text = cfg.textColor?.let { Color(it) } ?: if (cfg.glass) Color.White else palette.onBackground
     val muted = text.copy(alpha = if (cfg.glass) 0.9f else 0.7f)
@@ -896,12 +984,12 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
         when (cfg.style) {
             RailStyle.ICONS -> Tile(
                 interactive, { data.onNavClick(label) }, Modifier, CircleShape, container, text,
-                FocusStyle.SCALE_BORDER, 1.1f, text, { current = index; if (interactive && destination != null) data.onNavClick(label) }
+                FocusStyle.SCALE_BORDER, 1.1f, text, { current = index }
             ) { Box(Modifier.size(44.d()), contentAlignment = Alignment.Center) { NavigationIcon(label, text, Modifier.size(24.d())) } }
             else -> Tile(
                 interactive, { data.onNavClick(label) }, Modifier.fillMaxWidth(),
                 if (circular) CircleShape else RoundedCornerShape(10.d()), container, fg,
-                FocusStyle.BORDER, 1f, text, { current = index; if (interactive && destination != null) data.onNavClick(label) }
+                FocusStyle.BORDER, 1f, text, { current = index }
             ) {
                 Row(Modifier.padding(horizontal = 12.d(), vertical = 10.d()), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.d())) {
                     if (cfg.style == RailStyle.ICONS_LABELS) {
@@ -954,7 +1042,8 @@ private fun Rail(cfg: RailConfig, data: CanvasData, interactive: Boolean, onOpen
             Text(it, color = text, fontSize = 22.s(), fontWeight = FontWeight.Bold)
         }
         if (cfg.showProfile) {
-            Box(Modifier.size(36.d()).background(palette.surface, CircleShape), contentAlignment = Alignment.Center) {
+            val profileBackground = if (LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null) Color.Transparent else palette.surface
+            Box(Modifier.size(36.d()).background(profileBackground, CircleShape), contentAlignment = Alignment.Center) {
                 NavigationIcon("Perfil", text, Modifier.size(22.d()))
             }
             Spacer(Modifier.height(6.d()))

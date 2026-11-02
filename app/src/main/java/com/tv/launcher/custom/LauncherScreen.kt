@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -38,6 +40,14 @@ import android.net.Uri
 import android.content.Intent
 import android.content.Context
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Environment
+import android.Manifest
+import androidx.core.content.ContextCompat
+import com.tv.launcher.custom.files.BrowserRoot
+import com.tv.launcher.custom.files.FileBrowserDialog
+import com.tv.launcher.custom.files.FileBrowserMode
+import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.CompositionLocalProvider
@@ -50,10 +60,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -63,6 +75,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -79,6 +93,7 @@ import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.ui.theme.toStyle
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
 import com.tv.launcher.custom.feature.settings.LauncherSettingsDialog
 import com.tv.launcher.custom.feature.home.presentation.state.HomeEffect
 import com.tv.launcher.custom.feature.home.presentation.state.HomeIntent
@@ -115,8 +130,25 @@ private const val MAX_BACKGROUND_IMAGE_SIDE = 1920
 private data class PendingThemeImport(
     val manifest: ThemeManifest,
     val archiveBytes: ByteArray,
-    val catalogVersion: String? = null
+    val catalogVersion: String? = null,
+    val previewBackgroundUri: String? = null
 )
+
+/** Materializes the bundled background asset so import previews show the real wallpaper. */
+private fun themePreviewBackgroundUri(
+    context: Context,
+    archive: ThemeArchive,
+    manifest: ThemeManifest
+): String? = (manifest.background as? ThemeManifestBackground.Asset)?.let { background ->
+    archive.assets[background.path]?.let { bytes ->
+        runCatching {
+            val directory = File(context.cacheDir, "theme-previews").apply { mkdirs() }
+            val file = File(directory, "${manifest.id}.png")
+            file.writeBytes(bytes)
+            file.toURI().toString()
+        }.getOrNull()
+    }
+}
 
 private suspend fun fetchRemoteCatalog(url: String): List<RemoteTheme> = withContext(Dispatchers.IO) {
     val bytes = ThemeDownloadClient().download(url, 1024 * 1024)
@@ -124,6 +156,7 @@ private suspend fun fetchRemoteCatalog(url: String): List<RemoteTheme> = withCon
 }
 
 private suspend fun fetchRemoteTheme(
+    context: Context,
     url: String,
     catalogTheme: RemoteTheme? = null
 ): PendingThemeImport = withContext(Dispatchers.IO) {
@@ -136,7 +169,12 @@ private suspend fun fetchRemoteTheme(
     if (catalogTheme != null && manifest.id != catalogTheme.id) {
         throw IllegalArgumentException("Theme id does not match catalog")
     }
-    PendingThemeImport(manifest, archiveBytes, catalogVersion = catalogTheme?.version)
+    PendingThemeImport(
+        manifest = manifest,
+        archiveBytes = archiveBytes,
+        catalogVersion = catalogTheme?.version,
+        previewBackgroundUri = themePreviewBackgroundUri(context, archive, manifest)
+    )
 }
 
 private fun InputStream.readBounded(maxBytes: Int): ByteArray {
@@ -150,15 +188,96 @@ private fun InputStream.readBounded(maxBytes: Int): ByteArray {
     }
 }
 
-private fun hasUsableDocumentsPicker(context: Context): Boolean {
+private fun hasUsableDocumentsPicker(context: Context, mimeType: String = "application/zip"): Boolean {
     val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-        type = "application/zip"
+        type = mimeType
         addCategory(Intent.CATEGORY_OPENABLE)
     }
     return context.packageManager
         .queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
         .any { !it.activityInfo.name.endsWith("DocumentsStub") }
 }
+
+private fun hasStorageAccess(context: Context): Boolean = when {
+    Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> Environment.isExternalStorageManager() ||
+        (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+            PackageManager.PERMISSION_GRANTED)
+    else -> ContextCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE) ==
+        PackageManager.PERMISSION_GRANTED
+}
+
+private fun openNotificationSettings(context: Context) {
+    val intent = Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }.onFailure { openSystemSettings(context) }
+}
+
+private fun openAllFilesAccessSettings(context: Context) {
+    val appSettings = Intent(
+        android.provider.Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+        Uri.parse("package:${context.packageName}")
+    )
+    runCatching { context.startActivity(appSettings) }.onFailure {
+        runCatching {
+            context.startActivity(Intent(android.provider.Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION))
+        }
+    }
+}
+
+/** Directories offered by the in-app picker: public storage when permitted plus app-owned folders. */
+private fun browserRoots(context: Context): List<BrowserRoot> {
+    val roots = mutableListOf<BrowserRoot>()
+    if (hasStorageAccess(context)) {
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            ?.takeIf { it.canRead() }?.let { roots += BrowserRoot(context.getString(R.string.file_browser_root_downloads), it) }
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+            ?.takeIf { it.canRead() }?.let { roots += BrowserRoot(context.getString(R.string.file_browser_root_pictures), it) }
+        Environment.getExternalStorageDirectory()
+            ?.takeIf { it.canRead() }?.let { roots += BrowserRoot(context.getString(R.string.file_browser_root_internal), it) }
+        context.getExternalFilesDirs(null).filterNotNull().forEach { appDirectory ->
+            val volume = generateSequence(appDirectory) { it.parentFile }.elementAtOrNull(4) ?: return@forEach
+            if (volume != Environment.getExternalStorageDirectory() && volume.canRead()) {
+                roots += BrowserRoot(context.getString(R.string.file_browser_root_usb, volume.name), volume)
+            }
+        }
+    }
+    context.getExternalFilesDir(null)?.let { roots += BrowserRoot(context.getString(R.string.file_browser_root_app), it) }
+    return roots.distinctBy { it.directory.absolutePath }
+}
+
+/** Themes that do not declare their own recents row get one once the user has opened two apps. */
+private fun ThemeComposition.withRecentAppsRow(hasRecentApps: Boolean): ThemeComposition {
+    if (!hasRecentApps || blocks.any { it.type == ThemeBlockType.RECENTS_ROW }) return this
+    return copy(blocks = blocks + ThemeBlock(
+        ThemeBlockType.RECENTS_ROW,
+        text = "Recientes",
+        maxItems = 8,
+        itemHeight = 76,
+        aspect = CardAspect.WIDE,
+        cardStyle = CardStyle.FILLED,
+        cornerRadius = 12,
+        labelPos = LabelPos.BELOW,
+        spacing = 16,
+        textSize = 11
+    ))
+}
+
+private fun persistBackgroundImage(context: Context, source: File): Uri? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(source.absolutePath, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) error("Invalid image")
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = ImageSampling.calculateInSampleSize(bounds.outWidth, bounds.outHeight, MAX_BACKGROUND_IMAGE_SIDE)
+    }
+    val bitmap = BitmapFactory.decodeFile(source.absolutePath, options) ?: error("Invalid image")
+    val directory = File(context.filesDir, "backgrounds").apply { mkdirs() }
+    directory.listFiles()?.forEach { it.delete() }
+    val target = File(directory, "background-${java.util.UUID.randomUUID()}.png")
+    target.outputStream().use { output -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, output) }
+    Uri.fromFile(target)
+}.getOrNull()
 
 @Composable
 fun LauncherRoute(viewModel: HomeViewModel = hiltViewModel()) {
@@ -195,6 +314,7 @@ fun LauncherScreen(
     // Section is transient navigation state: restoring SEARCH from a saved composition can
     // make a freshly launched launcher appear to start in the wrong destination.
     var section by remember { mutableStateOf(LauncherSection.HOME) }
+    var appsFilter by rememberSaveable { mutableStateOf(AppsFilter.ALL) }
     val sectionStateHolder = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     var pendingTheme by remember { mutableStateOf<PendingThemeImport?>(null) }
     var showBundledThemePicker by remember { mutableStateOf(false) }
@@ -226,8 +346,11 @@ fun LauncherScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     BackHandler(enabled = section != LauncherSection.HOME) { section = section.onBack() }
-    val editorAssetsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
-        if (uris.isNotEmpty()) coroutineScope.launch {
+    var fileBrowserMode by rememberSaveable { mutableStateOf<FileBrowserMode?>(null) }
+    var pendingFileBrowserMode by remember { mutableStateOf<FileBrowserMode?>(null) }
+    fun importEditorAssets(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        coroutineScope.launch {
             val importedAssets = withContext(Dispatchers.IO) {
                 uris.mapNotNull { uri ->
                     runCatching {
@@ -255,6 +378,79 @@ fun LauncherScreen(
             }
         }
     }
+    fun importThemeArchive(bytes: ByteArray) {
+        coroutineScope.launch {
+            val imported = runCatching {
+                val (archive, manifest) = withContext(Dispatchers.Default) {
+                    val parsed = ThemeArchiveReader.read(bytes)
+                    parsed to ThemeManifestValidator.parse(parsed.manifest, parsed.assets.keys)
+                }
+                val previewBackground = withContext(Dispatchers.IO) {
+                    themePreviewBackgroundUri(context, archive, manifest)
+                }
+                PendingThemeImport(manifest, bytes, previewBackgroundUri = previewBackground)
+            }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrNull()
+            if (imported == null) {
+                Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
+            } else {
+                pendingTheme = imported
+            }
+        }
+    }
+    val storagePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val mode = pendingFileBrowserMode
+        pendingFileBrowserMode = null
+        if (granted && mode != null) {
+            fileBrowserMode = mode
+        } else {
+            Toast.makeText(context, R.string.file_browser_permission_denied, Toast.LENGTH_LONG).show()
+        }
+    }
+    fun openFileBrowser(mode: FileBrowserMode) {
+        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2 && !hasStorageAccess(context)) {
+            pendingFileBrowserMode = mode
+            storagePermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+        } else {
+            fileBrowserMode = mode
+        }
+    }
+    fun requestStorageAccess() {
+        when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> openAllFilesAccessSettings(context)
+            else -> {
+                pendingFileBrowserMode = fileBrowserMode
+                storagePermission.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+            }
+        }
+    }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    var storageRefresh by remember { mutableStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) storageRefresh++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    DisposableEffect(fileBrowserMode) {
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                // USB removed/reconnected while browsing: refresh roots without closing the dialog.
+                storageRefresh++
+            }
+        }
+        val filter = android.content.IntentFilter().apply {
+            addAction(Intent.ACTION_MEDIA_MOUNTED)
+            addAction(Intent.ACTION_MEDIA_UNMOUNTED)
+            addAction(Intent.ACTION_MEDIA_EJECT)
+            addAction(Intent.ACTION_MEDIA_REMOVED)
+        }
+        runCatching { context.registerReceiver(receiver, filter) }
+        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+    }
+    val editorAssetsPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        importEditorAssets(uris)
+    }
     var installedThemes by remember { mutableStateOf(emptyList<InstalledTheme>()) }
     var themeLibraryRefresh by remember { mutableStateOf(0) }
     val installedThemeStore = remember(context) {
@@ -264,16 +460,23 @@ fun LauncherScreen(
         val success = state as? HomeUiState.Success
         val apps = success?.apps.orEmpty()
         val favoritePackages = success?.appearance?.shortcuts?.values?.toSet().orEmpty()
+        val recents = success?.appearance?.recentPackages.orEmpty().mapNotNull { packageName ->
+            apps.firstOrNull { it.packageName == packageName }
+        }
         InstalledAppsCanvasData(
             apps = apps,
             favorites = apps.filter { it.packageName in favoritePackages },
             onLaunch = { packageName -> onIntent(HomeIntent.Launch(packageName)) },
-            onOpenApps = { section = LauncherSection.APPS },
+            onOpenApps = { appsFilter = AppsFilter.ALL; section = LauncherSection.APPS },
+            onOpenAppsFiltered = { filter -> appsFilter = filter; section = LauncherSection.APPS },
             onOpenSettings = { openSystemSettings(context) },
             onOpenPersonalization = { showLauncherSettings = true },
             onOpenSearch = { section = LauncherSection.SEARCH },
             onUnavailableNavigation = {},
-            assetUris = activeThemeAssetUris
+            assetUris = activeThemeAssetUris,
+            recents = recents,
+            onOpenProfile = { showLauncherSettings = true },
+            onOpenNotifications = { openNotificationSettings(context) }
         )
     }
     LaunchedEffect(appearance?.installedThemeId, appearance?.themeId, themeLibraryRefresh) {
@@ -283,6 +486,9 @@ fun LauncherScreen(
             ?: appearance?.themeId?.let { com.tv.launcher.custom.core.theme.defaultCompositionFor(it) }
         activeCompositionName = active?.name ?: appearance?.themeId?.let { context.getString(it.toStyle().nameRes) }.orEmpty()
         activeThemeAssetUris = active?.assetUris.orEmpty()
+    }
+    val homeComposition = remember(activeComposition, appearance?.recentPackages) {
+        activeComposition?.withRecentAppsRow((appearance?.recentPackages?.size ?: 0) >= 2)
     }
     // Primera instalación: deja un tema editable aplicado para que Inicio nunca quede vacío.
     LaunchedEffect(Unit) {
@@ -322,19 +528,15 @@ fun LauncherScreen(
     }
     val importThemePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) coroutineScope.launch {
-            val imported = runCatching {
-                val (bytes, manifest) = withContext(Dispatchers.IO) {
-                    val archiveBytes = context.contentResolver.openInputStream(uri)?.use { it.readBounded(20 * 1024 * 1024) }
-                        ?: error("Could not open theme package")
-                    val archive = ThemeArchiveReader.read(archiveBytes)
-                    archiveBytes to ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
+            val bytes = runCatching {
+                withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use { it.readBounded(20 * 1024 * 1024) }
                 }
-                PendingThemeImport(manifest, bytes)
             }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrNull()
-            if (imported == null) {
+            if (bytes == null) {
                 Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
             } else {
-                pendingTheme = imported
+                importThemeArchive(bytes)
             }
         }
     }
@@ -387,7 +589,7 @@ fun LauncherScreen(
         remoteErrorMessage = null
         coroutineScope.launch {
             try {
-                pendingTheme = fetchRemoteTheme(url, catalogTheme)
+                pendingTheme = fetchRemoteTheme(context, url, catalogTheme)
                 showRemoteThemes = false
             } catch (exception: Exception) {
                 if (exception is kotlinx.coroutines.CancellationException) throw exception
@@ -406,10 +608,35 @@ fun LauncherScreen(
             }.getOrNull()
         }
     }
+    val wallpaperMotion = rememberInfiniteTransition(label = "wallpaper")
+    val wallpaperScale by wallpaperMotion.animateFloat(
+        initialValue = 1.04f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 32000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "wallpaperScale"
+    )
+    val wallpaperDriftX by wallpaperMotion.animateFloat(
+        initialValue = -10f,
+        targetValue = 10f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 24000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "wallpaperDriftX"
+    )
+    val wallpaperDriftY by wallpaperMotion.animateFloat(
+        initialValue = -6f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 19000, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "wallpaperDriftY"
+    )
+    val wallpaperParallax by animateFloatAsState(
+        targetValue = if (section == LauncherSection.HOME) 0f else -18f,
+        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
+        label = "wallpaperParallax"
+    )
     LauncherTheme(appearance ?: LauncherAppearance(state.themeId)) {
         val palette = LocalLauncherStyle.current.palette
          CompositionLocalProvider(
              LocalBackgroundImageVisible provides (backgroundBitmap != null),
+             LocalBackgroundImage provides backgroundBitmap,
              com.tv.launcher.custom.core.ui.components.LocalCanvasWeatherContent provides
                  (if (weatherState.settings.isEnabled && weatherState.settings.city != null) { widgetModifier ->
                      WeatherSummaryCard(
@@ -425,8 +652,17 @@ fun LauncherScreen(
                      )
                  } else null)
          ) {
-        Box(Modifier.fillMaxSize().background(palette.background)) {
-          if (backgroundBitmap != null) Image(backgroundBitmap!!, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().clipToBounds().background(palette.background)) {
+          if (backgroundBitmap != null) Image(
+              backgroundBitmap!!, null,
+              Modifier.fillMaxSize().graphicsLayer {
+                  scaleX = wallpaperScale
+                  scaleY = wallpaperScale
+                  translationX = wallpaperDriftX + wallpaperParallax
+                  translationY = wallpaperDriftY
+              },
+              contentScale = ContentScale.Crop
+          )
           Surface(
             modifier = Modifier.fillMaxSize(), shape = RectangleShape,
             colors = androidx.tv.material3.SurfaceDefaults.colors(
@@ -444,25 +680,44 @@ fun LauncherScreen(
                 )
                   is HomeUiState.Success -> CompositionLocalProvider(
                       LocalOpenHome provides { section = LauncherSection.HOME },
-                      LocalOpenApps provides { section = LauncherSection.APPS },
+                      LocalOpenApps provides { appsFilter = AppsFilter.ALL; section = LauncherSection.APPS },
                       LocalOpenSearch provides { section = LauncherSection.SEARCH },
                       LocalLauncherSection provides section,
                       LocalLauncherSectionContent provides if (section == LauncherSection.HOME) null else {
                           @Composable {
-                              sectionStateHolder.SaveableStateProvider(section.name) {
-                                  when (section) {
-                                      LauncherSection.APPS -> AppDrawerScreen(
-                                          apps = state.apps,
-                                          onLaunch = { onIntent(HomeIntent.Launch(it)) }
-                                      )
-                                      LauncherSection.SEARCH -> AppSearchScreen(
-                                          apps = state.apps,
-                                          onLaunch = { onIntent(HomeIntent.Launch(it)) },
-                                          onDismiss = { section = LauncherSection.HOME },
-                                          onOpenSettings = { openSystemSettings(context) },
-                                          embedded = true
-                                      )
-                                      LauncherSection.HOME -> Unit
+                              var appeared by remember(section) { mutableStateOf(false) }
+                              val progress by animateFloatAsState(
+                                  targetValue = if (appeared) 1f else 0f,
+                                  animationSpec = spring(dampingRatio = 0.9f, stiffness = 280f),
+                                  label = "sectionEnter"
+                              )
+                              LaunchedEffect(section) { appeared = true }
+                              Box(Modifier.fillMaxSize().graphicsLayer {
+                                  alpha = progress
+                                  translationX = (1f - progress) * 42.dp.toPx()
+                                  val scale = 0.99f + 0.01f * progress
+                                  scaleX = scale
+                                  scaleY = scale
+                              }) {
+                                  sectionStateHolder.SaveableStateProvider(section.name) {
+                                      when (section) {
+                                          LauncherSection.APPS -> AppDrawerScreen(
+                                              apps = state.apps,
+                                              onLaunch = { onIntent(HomeIntent.Launch(it)) },
+                                              filter = appsFilter,
+                                              favorites = state.appearance.shortcuts.values.toSet(),
+                                              recents = state.appearance.recentPackages,
+                                              onFilterChange = { appsFilter = it }
+                                          )
+                                          LauncherSection.SEARCH -> AppSearchScreen(
+                                              apps = state.apps,
+                                              onLaunch = { onIntent(HomeIntent.Launch(it)) },
+                                              onDismiss = { section = LauncherSection.HOME },
+                                              onOpenSettings = { openSystemSettings(context) },
+                                              embedded = true
+                                          )
+                                          LauncherSection.HOME -> Unit
+                                      }
                                   }
                               }
                           }
@@ -478,11 +733,14 @@ fun LauncherScreen(
                       onUnavailableNavigation = { label ->
                           Toast.makeText(context, context.getString(R.string.custom_section_unavailable, label), Toast.LENGTH_SHORT).show()
                       },
-                      customComposition = activeComposition,
+                      customComposition = homeComposition,
                       customThemeName = activeCompositionName,
                       customThemeAssets = activeThemeAssetUris,
                       onOpenPersonalization = { showLauncherSettings = true },
-                      onOpenSearch = { section = LauncherSection.SEARCH }
+                      onOpenSearch = { section = LauncherSection.SEARCH },
+                      onOpenAppsFiltered = { filter -> appsFilter = filter; section = LauncherSection.APPS },
+                      onOpenProfile = { showLauncherSettings = true },
+                      onOpenNotifications = { openNotificationSettings(context) }
                       )
                     }
                    }
@@ -493,7 +751,7 @@ fun LauncherScreen(
                val palette = LocalLauncherStyle.current.palette
                WeatherSummaryCard(
                    state = weatherState,
-                   backgroundColor = palette.surface,
+                   backgroundColor = if (backgroundBitmap != null) androidx.compose.ui.graphics.Color.Transparent else palette.surface,
                    contentColor = palette.onBackground,
                    mutedColor = palette.onMuted,
                    onIntent = onIntent,
@@ -515,17 +773,8 @@ fun LauncherScreen(
                     })
                 },
                 onDismiss = { showLauncherSettings = false },
-                onChooseBackgroundImage = { backgroundPicker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) },
-                onImportTheme = {
-                    if (!hasUsableDocumentsPicker(context)) {
-                        showBundledThemePicker = true
-                    } else {
-                        runCatching {
-                            importThemePicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
-                        }
-                            .onFailure { showBundledThemePicker = true }
-                    }
-                },
+                onChooseBackgroundImage = { openFileBrowser(FileBrowserMode.IMAGES) },
+                onImportTheme = { openFileBrowser(FileBrowserMode.THEMES) },
                 onExportTheme = { exportThemePicker.launch("${(appearance ?: LauncherAppearance(state.themeId)).themeId.name.lowercase()}-theme.zip") },
                 onOpenOnlineThemes = { showRemoteThemes = true },
                 onCreateCustomTheme = {
@@ -636,7 +885,7 @@ fun LauncherScreen(
                 composition = editedComposition,
                 previewData = compositionPreviewData.withThemeAssets(editorAssetUris),
                 availableAssetPaths = editorAssetBytes.keys.sorted(),
-                onImportAssets = { editorAssetsPicker.launch(arrayOf("image/png", "image/jpeg", "image/webp")) },
+                onImportAssets = { openFileBrowser(FileBrowserMode.ASSETS) },
                 onCompositionChange = { if (!isSavingComposition) editedComposition = it },
                 isEditing = editingThemeId != null,
                 isSaving = isSavingComposition,
@@ -715,6 +964,66 @@ fun LauncherScreen(
                 }
             )
         }
+        fileBrowserMode?.let { mode ->
+            FileBrowserDialog(
+                mode = mode,
+                roots = remember(mode, storageRefresh) { browserRoots(context) },
+                storageAccess = remember(fileBrowserMode, storageRefresh) { hasStorageAccess(context) },
+                onRequestStorage = { requestStorageAccess() },
+                onDismiss = { fileBrowserMode = null },
+                onOpenBundledThemes = if (mode == FileBrowserMode.THEMES) {
+                    { fileBrowserMode = null; showBundledThemePicker = true }
+                } else null,
+                onOpenSystemPicker = if (hasUsableDocumentsPicker(
+                        context,
+                        if (mode == FileBrowserMode.THEMES) "application/zip" else "image/*"
+                    )
+                ) {
+                    {
+                        fileBrowserMode = null
+                        runCatching {
+                            when (mode) {
+                                FileBrowserMode.THEMES -> importThemePicker.launch(
+                                    arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")
+                                )
+                                FileBrowserMode.IMAGES -> backgroundPicker.launch(
+                                    arrayOf("image/png", "image/jpeg", "image/webp")
+                                )
+                                FileBrowserMode.ASSETS -> editorAssetsPicker.launch(
+                                    arrayOf("image/png", "image/jpeg", "image/webp")
+                                )
+                            }
+                        }.onFailure {
+                            if (mode == FileBrowserMode.THEMES) showBundledThemePicker = true
+                        }
+                    }
+                } else null,
+                onFileSelected = { file ->
+                    fileBrowserMode = null
+                    when (mode) {
+                        FileBrowserMode.THEMES -> coroutineScope.launch {
+                            val bytes = withContext(Dispatchers.IO) {
+                                runCatching { file.readBytes() }.getOrNull()
+                            }
+                            if (bytes == null || bytes.size > 20 * 1024 * 1024) {
+                                Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
+                            } else {
+                                importThemeArchive(bytes)
+                            }
+                        }
+                        FileBrowserMode.IMAGES -> coroutineScope.launch {
+                            val uri = withContext(Dispatchers.IO) { persistBackgroundImage(context, file) }
+                            if (uri == null) {
+                                Toast.makeText(context, R.string.file_browser_image_failed, Toast.LENGTH_LONG).show()
+                            } else {
+                                onIntent(HomeIntent.SelectBackgroundImage(uri.toString()))
+                            }
+                        }
+                        FileBrowserMode.ASSETS -> importEditorAssets(listOf(Uri.fromFile(file)))
+                    }
+                }
+            )
+        }
         if (showBundledThemePicker) {
             Dialog(
                 onDismissRequest = { showBundledThemePicker = false },
@@ -739,11 +1048,14 @@ fun LauncherScreen(
                                                 it.readBounded(20 * 1024 * 1024)
                                             }
                                         }
-                                        val manifest = withContext(Dispatchers.Default) {
-                                            val archive = ThemeArchiveReader.read(bytes)
-                                            ThemeManifestValidator.parse(archive.manifest, archive.assets.keys)
+                                        val (archive, manifest) = withContext(Dispatchers.Default) {
+                                            val parsed = ThemeArchiveReader.read(bytes)
+                                            parsed to ThemeManifestValidator.parse(parsed.manifest, parsed.assets.keys)
                                         }
-                                        PendingThemeImport(manifest, bytes)
+                                        val previewBackground = withContext(Dispatchers.IO) {
+                                            themePreviewBackgroundUri(context, archive, manifest)
+                                        }
+                                        PendingThemeImport(manifest, bytes, previewBackgroundUri = previewBackground)
                                     }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrNull()
                                     if (imported == null) {
                                         Toast.makeText(context, R.string.theme_import_failed, Toast.LENGTH_LONG).show()
@@ -788,7 +1100,8 @@ fun LauncherScreen(
                                 appearance = LauncherAppearance(
                                     themeId = pending.manifest.layout,
                                     accentColorArgb = pending.manifest.accentArgb,
-                                    backgroundColorArgb = backgroundColor
+                                    backgroundColorArgb = backgroundColor,
+                                    backgroundImageUri = pending.previewBackgroundUri
                                 ),
                                 composition = pending.manifest.composition,
                                 name = pending.manifest.name,
@@ -843,22 +1156,66 @@ private fun openSystemSettings(context: Context) {
 @Composable
 private fun AppDrawerScreen(
     apps: List<com.tv.launcher.custom.core.model.apps.AppEntry>,
-    onLaunch: (String) -> Unit
+    onLaunch: (String) -> Unit,
+    filter: AppsFilter = AppsFilter.ALL,
+    favorites: Set<String> = emptySet(),
+    recents: List<String> = emptyList(),
+    onFilterChange: (AppsFilter) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    var categories by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    LaunchedEffect(apps) {
+        categories = withContext(Dispatchers.IO) {
+            apps.associate { app ->
+                app.packageName to runCatching {
+                    context.packageManager.getApplicationInfo(app.packageName, 0).category
+                }.getOrDefault(android.content.pm.ApplicationInfo.CATEGORY_UNDEFINED)
+            }
+        }
+    }
+    val filteredApps = remember(apps, filter, categories, favorites, recents) {
+        AppsFiltering.apply(apps, filter, categories, favorites, recents)
+    }
     var focusedPackage by rememberSaveable { mutableStateOf<String?>(null) }
-    val focusTarget = apps.firstOrNull { it.packageName == focusedPackage } ?: apps.firstOrNull()
+    val focusTarget = filteredApps.firstOrNull { it.packageName == focusedPackage } ?: filteredApps.firstOrNull()
     val firstAppFocus = remember { FocusRequester() }
     val isPreview = androidx.compose.ui.platform.LocalInspectionMode.current
     val style = com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle.current
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
     val cardShape = androidx.compose.foundation.shape.RoundedCornerShape(style.tileRadius)
     Column(Modifier.fillMaxSize().padding(horizontal = 24.dp, vertical = 16.dp)) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.launcher_all_apps), fontSize = 28.sp, color = style.palette.onBackground)
-                Text(androidx.compose.ui.res.pluralStringResource(R.plurals.launcher_app_count, apps.size, apps.size), fontSize = 16.sp, color = style.palette.onMuted)
+            Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(if (filter == AppsFilter.ALL) R.string.launcher_all_apps else filter.labelRes()),
+                    fontSize = 28.sp, color = style.palette.onBackground
+                )
+                Text(androidx.compose.ui.res.pluralStringResource(R.plurals.launcher_app_count, filteredApps.size, filteredApps.size), fontSize = 16.sp, color = style.palette.onMuted)
             }
-            if (apps.isEmpty()) {
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AppsFilter.entries.forEach { option ->
+                    SettingsButton(
+                        label = stringResource(option.labelRes()),
+                        selected = option == filter,
+                        onClick = { onFilterChange(option) }
+                    )
+                }
+            }
+            if (filteredApps.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.launcher_no_apps), color = style.palette.onMuted)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        Text(
+                            stringResource(if (apps.isEmpty()) R.string.launcher_no_apps else R.string.apps_filter_empty),
+                            color = style.palette.onMuted
+                        )
+                        if (filter != AppsFilter.ALL) {
+                            Button(onClick = { onFilterChange(AppsFilter.ALL) }) {
+                                Text(stringResource(R.string.apps_filter_show_all))
+                            }
+                        }
+                    }
                 }
             } else {
             LazyVerticalGrid(
@@ -868,14 +1225,14 @@ private fun AppDrawerScreen(
                 horizontalArrangement = Arrangement.spacedBy(24.dp),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                items(apps, key = { it.packageName }) { app ->
+                items(filteredApps, key = { it.packageName }) { app ->
                     androidx.tv.material3.Surface(
                         onClick = { onLaunch(app.packageName) },
                         shape = androidx.tv.material3.ClickableSurfaceDefaults.shape(cardShape),
                         colors = androidx.tv.material3.ClickableSurfaceDefaults.colors(
-                            containerColor = if (style.glassSurfaces) androidx.compose.ui.graphics.Color.Transparent else style.palette.surface,
+                            containerColor = if (style.glassSurfaces || hasCustomBackground) androidx.compose.ui.graphics.Color.Transparent else style.palette.surface,
                             contentColor = style.palette.onBackground,
-                            focusedContainerColor = if (style.glassSurfaces) androidx.compose.ui.graphics.Color.Transparent else style.palette.surface,
+                            focusedContainerColor = if (style.glassSurfaces || hasCustomBackground) androidx.compose.ui.graphics.Color.Transparent else style.palette.surface,
                             focusedContentColor = style.palette.onBackground
                         ),
                         scale = androidx.tv.material3.ClickableSurfaceDefaults.scale(focusedScale = 1.04f),
@@ -900,6 +1257,16 @@ private fun AppDrawerScreen(
             }
             }
         }
+}
+
+private fun AppsFilter.labelRes(): Int = when (this) {
+    AppsFilter.ALL -> R.string.apps_filter_all
+    AppsFilter.FOR_YOU -> R.string.apps_filter_for_you
+    AppsFilter.VIDEO -> R.string.apps_filter_video
+    AppsFilter.AUDIO -> R.string.apps_filter_audio
+    AppsFilter.GAMES -> R.string.apps_filter_games
+    AppsFilter.FAVORITES -> R.string.apps_filter_favorites
+    AppsFilter.RECENTS -> R.string.apps_filter_recents
 }
 
 @androidx.compose.ui.tooling.preview.Preview(name = "Apps · Contenido integrado", widthDp = 640, heightDp = 460)

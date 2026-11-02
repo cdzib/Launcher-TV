@@ -33,6 +33,8 @@ import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 import com.tv.launcher.custom.core.model.apps.AppEntry
 import com.tv.launcher.custom.core.model.theme.ThemeId
 import kotlinx.coroutines.Dispatchers
@@ -71,16 +73,18 @@ fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modif
     interactive: Boolean = true, contentScale: Float = 1f, glass: Boolean = false) {
     val palette = LocalLauncherStyle.current.palette
     val openApps = LocalOpenApps.current
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
+    val transparentSurface = glass || hasCustomBackground
     val shape = RoundedCornerShape(((if (glass) 18 else 8) * contentScale).dp)
     Surface(
         onClick = { if (interactive) { if (app == null) openApps() else onLaunch(app.packageName) } },
         modifier = modifier.then(Modifier.focusProperties { canFocus = interactive }),
         shape = ClickableSurfaceDefaults.shape(shape),
-        colors = ClickableSurfaceDefaults.colors(containerColor = if (glass) Color.Transparent else palette.surface, focusedContainerColor = if (glass) Color.Transparent else palette.surface),
+        colors = ClickableSurfaceDefaults.colors(containerColor = if (transparentSurface) Color.Transparent else palette.surface, focusedContainerColor = if (transparentSurface) Color.Transparent else palette.surface),
         border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(if (glass) 1.dp else 2.dp, Color.White), shape = shape)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
-        Box(Modifier.fillMaxSize().then(if (glass) Modifier.glassSurfaceBackground(shape) else Modifier.background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f)))))) {
+        Box(Modifier.fillMaxSize().then(if (glass) Modifier.glassSurfaceBackground(shape) else if (!hasCustomBackground) Modifier.background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f)))) else Modifier)) {
             if (app != null && !glass) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding((20 * contentScale).dp), contentScale)
             Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(if (glass) 1f else 0.5f).padding((28 * contentScale).dp), verticalArrangement = Arrangement.spacedBy(((if (glass) 8 else 12) * contentScale).dp)) {
                 if (glass) Text(stringResource(R.string.featured_installed_app), color = Color.White.copy(alpha = 0.72f), fontSize = (10 * contentScale).sp)
@@ -97,6 +101,8 @@ fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modif
 @Composable
 fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: Dp, modifier: Modifier = Modifier,
     interactive: Boolean = true, contentScale: Float = 1f) {
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
+    val container = if (hasCustomBackground) Color.Transparent else Color(0xFF202026)
     LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy((12 * contentScale).dp), contentPadding = PaddingValues((4 * contentScale).dp)) {
         items(apps, key = AppEntry::packageName) { app ->
             val shape = RoundedCornerShape((6 * contentScale).dp)
@@ -104,7 +110,7 @@ fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: 
                 onClick = { if (interactive) onLaunch(app.packageName) },
                 modifier = Modifier.width(height * 1.75f).height(height).focusProperties { canFocus = interactive },
                 shape = ClickableSurfaceDefaults.shape(shape),
-                colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF202026), focusedContainerColor = Color(0xFF202026)),
+                colors = ClickableSurfaceDefaults.colors(containerColor = container, focusedContainerColor = container),
                 border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f)
             ) {

@@ -71,7 +71,9 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.SelectBackgroundImage -> updateAppearance { copy(backgroundImageUri = intent.uri, backgroundColorArgb = null) }
             is HomeIntent.SelectBackgroundColor -> updateAppearance { copy(backgroundImageUri = null, backgroundColorArgb = intent.argb) }
             HomeIntent.ClearCustomBackground -> updateAppearance { copy(backgroundImageUri = null, backgroundColorArgb = null) }
-            is HomeIntent.ApplyImportedTheme -> updateAppearance { intent.appearance.copy(shortcuts = shortcuts) }
+            is HomeIntent.ApplyImportedTheme -> updateAppearance {
+                intent.appearance.copy(shortcuts = shortcuts, recentPackages = recentPackages)
+            }
             is HomeIntent.SelectTileShape -> updateAppearance { copy(tileShape = intent.value) }
             is HomeIntent.SelectShortcut -> {
                 val apps = (_state.value as? HomeUiState.Success)?.apps.orEmpty()
@@ -180,6 +182,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             if (launchApp(packageName) is DomainResult.Failure) {
                 _effect.send(HomeEffect.ShowMessage(R.string.error_launch))
+            } else {
+                updateAppearance {
+                    copy(recentPackages = (listOf(packageName) + recentPackages.filterNot { it == packageName })
+                        .take(MAX_RECENT_APPS))
+                }
             }
         }
     }
@@ -212,5 +219,6 @@ class HomeViewModel @Inject constructor(
 
     private companion object {
         const val MIN_WEATHER_QUERY_LENGTH = 2
+        const val MAX_RECENT_APPS = 12
     }
 }

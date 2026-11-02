@@ -76,6 +76,8 @@ import androidx.tv.material3.Surface
 import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 import com.tv.launcher.custom.core.model.apps.AppEntry
 
 internal enum class SearchFieldVariant { BASE, FOCUS }
@@ -267,6 +269,7 @@ internal fun SearchAppTile(
     val palette = LocalLauncherStyle.current.palette
     var focused by remember { mutableStateOf(false) }
     val style = LocalLauncherStyle.current
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
     val shape = RoundedCornerShape(if (style.declarativeSurfaces) style.tileRadius else radius)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
@@ -283,8 +286,8 @@ internal fun SearchAppTile(
                 },
             shape = ClickableSurfaceDefaults.shape(shape),
             colors = ClickableSurfaceDefaults.colors(
-                containerColor = if (style.glassSurfaces) Color.Transparent else containerColor,
-                focusedContainerColor = if (style.glassSurfaces) Color.Transparent else focusedContainerColor
+                containerColor = if (style.glassSurfaces || hasCustomBackground) Color.Transparent else containerColor,
+                focusedContainerColor = if (style.glassSurfaces || hasCustomBackground) Color.Transparent else focusedContainerColor
             ),
             scale = ClickableSurfaceDefaults.scale(focusedScale = focusedScale),
             border = ClickableSurfaceDefaults.border(

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 import com.tv.launcher.custom.core.model.apps.AppEntry
 import com.tv.launcher.custom.core.theme.CompositionCanvas
 import com.tv.launcher.custom.core.theme.defaultCompositionFor
@@ -50,6 +52,7 @@ fun SettingsThemePreview(
     assetUris: Map<String, String> = emptyMap()
 ) {
     val previewData = remember(data, assetUris) { data.withThemeAssets(assetUris) }
+    val backgroundImage = rememberBackgroundImage(appearance.backgroundImageUri)
     Layout(
         modifier = modifier.clipToBounds().clearAndSetSemantics { }
             .pointerInput(Unit) {
@@ -66,10 +69,14 @@ fun SettingsThemePreview(
                 CompositionLocalProvider(
                     LocalOpenApps provides {},
                     LocalShortcutPackages provides appearance.shortcuts,
-                    LocalSetShortcut provides { _, _ -> }
+                    LocalSetShortcut provides { _, _ -> },
+                    LocalBackgroundImageVisible provides (appearance.backgroundImageUri != null),
+                    LocalBackgroundImage provides backgroundImage
                 ) {
                     Box(Modifier.fillMaxSize().background(LocalLauncherStyle.current.palette.background)) {
-                        SettingsBackgroundImage(appearance.backgroundImageUri, Modifier.fillMaxSize())
+                        backgroundImage?.let {
+                            Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        }
                         CompositionCanvas(
                             composition ?: defaultCompositionFor(appearance.themeId),
                             previewData, Modifier.fillMaxSize(), name,
@@ -96,7 +103,7 @@ fun SettingsThemePreview(
 }
 
 @Composable
-internal fun SettingsBackgroundImage(uri: String?, modifier: Modifier = Modifier) {
+internal fun rememberBackgroundImage(uri: String?): ImageBitmap? {
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
     val bitmap by produceState<ImageBitmap?>(null, uri, isPreview) {
@@ -121,5 +128,5 @@ internal fun SettingsBackgroundImage(uri: String?, modifier: Modifier = Modifier
             }
         }
     }
-    bitmap?.let { Image(it, null, modifier, contentScale = ContentScale.Crop) }
+    return bitmap
 }

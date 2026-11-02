@@ -151,6 +151,16 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `lanzar apps alimenta recientes sin duplicados y conserva el orden`() {
+        val vm = viewModel(listOf(AppEntry("a", "A"), AppEntry("b", "B"), AppEntry("c", "C")))
+        vm.onIntent(HomeIntent.Launch("a"))
+        vm.onIntent(HomeIntent.Launch("b"))
+        vm.onIntent(HomeIntent.Launch("a"))
+        vm.onIntent(HomeIntent.Launch("c"))
+        assertEquals(listOf("c", "a", "b"), (vm.state.value as HomeUiState.Success).appearance.recentPackages)
+    }
+
+    @Test
     fun `aplicar tema importado conserva los accesos webos existentes`() {
         val vm = viewModel(listOf(AppEntry("app.one", "One")))
         vm.onIntent(HomeIntent.SelectShortcut(0, "app.one"))

@@ -7,6 +7,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -108,6 +109,9 @@ val LocalLauncherStyle = staticCompositionLocalOf<LauncherStyle> {
 }
 
 val LocalBackgroundImageVisible = staticCompositionLocalOf { false }
+
+/** Host-owned wallpaper already drawn behind the canvas; keeps glass surfaces on the real image. */
+val LocalBackgroundImage = staticCompositionLocalOf<ImageBitmap?> { null }
 
 @Composable
 fun LauncherTheme(themeId: ThemeId, content: @Composable () -> Unit) {

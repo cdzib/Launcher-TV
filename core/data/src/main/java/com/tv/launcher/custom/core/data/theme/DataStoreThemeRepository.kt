@@ -22,6 +22,7 @@ private val BackgroundImageUriKey = stringPreferencesKey("appearance_background_
 private val BackgroundColorKey = stringPreferencesKey("appearance_background_color_argb")
 private val AccentColorKey = stringPreferencesKey("appearance_accent_color_argb")
 private val InstalledThemeIdKey = stringPreferencesKey("appearance_installed_theme_id")
+private val RecentPackagesKey = stringPreferencesKey("appearance_recent_packages")
 
 @Singleton
 class DataStoreThemeRepository @Inject constructor(
@@ -54,6 +55,8 @@ internal fun MutablePreferences.setLauncherAppearance(appearance: LauncherAppear
     appearance.backgroundColorArgb?.let { this[BackgroundColorKey] = it.toString() } ?: remove(BackgroundColorKey)
     appearance.accentColorArgb?.let { this[AccentColorKey] = it.toString() } ?: remove(AccentColorKey)
     appearance.installedThemeId?.let { this[InstalledThemeIdKey] = it } ?: remove(InstalledThemeIdKey)
+    if (appearance.recentPackages.isEmpty()) remove(RecentPackagesKey)
+    else this[RecentPackagesKey] = appearance.recentPackages.joinToString("|")
     for (slot in 0..4) {
         val key = stringPreferencesKey("shortcut_$slot")
         val packageName = appearance.shortcuts[slot]
@@ -70,7 +73,8 @@ internal fun Preferences.toLauncherAppearance() = LauncherAppearance(
     backgroundImageUri = this[BackgroundImageUriKey],
     backgroundColorArgb = this[BackgroundColorKey]?.toLongOrNull(),
     accentColorArgb = this[AccentColorKey]?.toLongOrNull(),
-    installedThemeId = this[InstalledThemeIdKey]
+    installedThemeId = this[InstalledThemeIdKey],
+    recentPackages = this[RecentPackagesKey]?.split("|")?.filter { it.isNotBlank() }.orEmpty()
 )
 
 private inline fun <reified T : Enum<T>> Preferences.enumPreference(

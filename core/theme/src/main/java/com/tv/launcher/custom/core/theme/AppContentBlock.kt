@@ -29,6 +29,8 @@ import com.tv.launcher.custom.core.model.theme.*
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.components.*
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 
 /** Reusable installed-app content selected by the ZIP, not by a theme/layout identity. */
 @Composable
@@ -38,6 +40,7 @@ internal fun AppContentBlock(block: ThemeBlock, data: CanvasData, interactive: B
     val shortcuts = LocalShortcutPackages.current
     val setShortcut = LocalSetShortcut.current
     val palette = LocalLauncherStyle.current.palette
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
     var editingSlot by remember { mutableStateOf<Int?>(null) }
     var showSlots by remember { mutableStateOf(false) }
     val height = (block.rItemH() * scale).dp
@@ -55,7 +58,7 @@ internal fun AppContentBlock(block: ThemeBlock, data: CanvasData, interactive: B
                 val app = resolveShortcut(apps, shortcuts, slot)
                 val label = app?.label ?: stringResource(R.string.empty_shortcut)
                 val shape = RoundedCornerShape((4 * scale).dp)
-                val color = palette.accent.copy(alpha = listOf(1f, 0.82f, 0.68f, 0.54f, 0.40f)[slot])
+                val color = if (hasCustomBackground) Color.Transparent else palette.accent.copy(alpha = listOf(1f, 0.82f, 0.68f, 0.54f, 0.40f)[slot])
                 Surface(onClick = { if (interactive) { if (app == null) editingSlot = slot else launch(app.packageName) } },
                     onLongClick = { if (interactive) editingSlot = slot },
                     modifier = Modifier.weight(1f).height(height).focusProperties { canFocus = interactive }
@@ -87,7 +90,7 @@ internal fun AppContentBlock(block: ThemeBlock, data: CanvasData, interactive: B
                 Surface(onClick = { launch(app.packageName) }, modifier = Modifier.size(height)
                     .focusProperties { canFocus = interactive }.semantics { contentDescription = app.label },
                     shape = ClickableSurfaceDefaults.shape(shape),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = palette.surface),
+                    colors = ClickableSurfaceDefaults.colors(containerColor = if (hasCustomBackground) Color.Transparent else palette.surface),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                     border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape))) {
                     AppIcon(app.packageName, Modifier.fillMaxSize().padding((4 * scale).dp))
@@ -100,7 +103,7 @@ internal fun AppContentBlock(block: ThemeBlock, data: CanvasData, interactive: B
             Surface(onClick = { if (interactive) showSlots = true },
                 modifier = Modifier.width((160 * scale).dp).height((44 * scale).dp).focusProperties { canFocus = interactive },
                 shape = ClickableSurfaceDefaults.shape(RoundedCornerShape((4 * scale).dp)),
-                colors = ClickableSurfaceDefaults.colors(containerColor = palette.surface)) {
+                colors = ClickableSurfaceDefaults.colors(containerColor = if (hasCustomBackground) Color.Transparent else palette.surface)) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(stringResource(R.string.edit_shortcuts), color = palette.onBackground, fontSize = (14 * scale).sp)
                 }
@@ -114,7 +117,7 @@ internal fun AppContentBlock(block: ThemeBlock, data: CanvasData, interactive: B
                 Surface(onClick = { if (interactive) data.onItemClick(block, index) }, modifier = Modifier.size(height)
                     .focusProperties { canFocus = interactive && data.isItemClickable(block, index) }.semantics { contentDescription = label },
                     shape = ClickableSurfaceDefaults.shape(shape),
-                    colors = ClickableSurfaceDefaults.colors(containerColor = palette.surface),
+                    colors = ClickableSurfaceDefaults.colors(containerColor = if (hasCustomBackground) Color.Transparent else palette.surface),
                     scale = ClickableSurfaceDefaults.scale(focusedScale = 1.08f),
                     border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape))) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
