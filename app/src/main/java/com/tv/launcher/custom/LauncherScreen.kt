@@ -94,6 +94,7 @@ import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.ui.theme.toStyle
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalAnimationsEnabled
 import com.tv.launcher.custom.feature.settings.LauncherSettingsDialog
 import com.tv.launcher.custom.feature.home.presentation.state.HomeEffect
 import com.tv.launcher.custom.feature.home.presentation.state.HomeIntent
@@ -459,13 +460,15 @@ fun LauncherScreen(
     val compositionPreviewData: CanvasData = remember(state, onIntent, context, activeThemeAssetUris) {
         val success = state as? HomeUiState.Success
         val apps = success?.apps.orEmpty()
-        val favoritePackages = success?.appearance?.shortcuts?.values?.toSet().orEmpty()
         val recents = success?.appearance?.recentPackages.orEmpty().mapNotNull { packageName ->
+            apps.firstOrNull { it.packageName == packageName }
+        }
+        val favorites = success?.appearance?.favoritePackages.orEmpty().mapNotNull { packageName ->
             apps.firstOrNull { it.packageName == packageName }
         }
         InstalledAppsCanvasData(
             apps = apps,
-            favorites = apps.filter { it.packageName in favoritePackages },
+            favorites = favorites,
             onLaunch = { packageName -> onIntent(HomeIntent.Launch(packageName)) },
             onOpenApps = { appsFilter = AppsFilter.ALL; section = LauncherSection.APPS },
             onOpenAppsFiltered = { filter -> appsFilter = filter; section = LauncherSection.APPS },
@@ -608,6 +611,7 @@ fun LauncherScreen(
             }.getOrNull()
         }
     }
+    val animationsEnabled = appearance?.animationsEnabled ?: true
     val wallpaperMotion = rememberInfiniteTransition(label = "wallpaper")
     val wallpaperScale by wallpaperMotion.animateFloat(
         initialValue = 1.04f,
@@ -637,6 +641,7 @@ fun LauncherScreen(
          CompositionLocalProvider(
              LocalBackgroundImageVisible provides (backgroundBitmap != null),
              LocalBackgroundImage provides backgroundBitmap,
+             LocalAnimationsEnabled provides (appearance?.animationsEnabled ?: true),
              com.tv.launcher.custom.core.ui.components.LocalCanvasWeatherContent provides
                  (if (weatherState.settings.isEnabled && weatherState.settings.city != null) { widgetModifier ->
                      WeatherSummaryCard(
@@ -656,10 +661,11 @@ fun LauncherScreen(
           if (backgroundBitmap != null) Image(
               backgroundBitmap!!, null,
               Modifier.fillMaxSize().graphicsLayer {
-                  scaleX = wallpaperScale
-                  scaleY = wallpaperScale
-                  translationX = wallpaperDriftX + wallpaperParallax
-                  translationY = wallpaperDriftY
+                  val scale = if (animationsEnabled) wallpaperScale else 1f
+                  scaleX = scale
+                  scaleY = scale
+                  translationX = if (animationsEnabled) wallpaperDriftX + wallpaperParallax else 0f
+                  translationY = if (animationsEnabled) wallpaperDriftY else 0f
               },
               contentScale = ContentScale.Crop
           )
@@ -686,11 +692,12 @@ fun LauncherScreen(
                       LocalLauncherSectionContent provides if (section == LauncherSection.HOME) null else {
                           @Composable {
                               var appeared by remember(section) { mutableStateOf(false) }
-                              val progress by animateFloatAsState(
+                              val animatedProgress by animateFloatAsState(
                                   targetValue = if (appeared) 1f else 0f,
                                   animationSpec = spring(dampingRatio = 0.9f, stiffness = 280f),
                                   label = "sectionEnter"
                               )
+                              val progress = if (animationsEnabled) animatedProgress else 1f
                               LaunchedEffect(section) { appeared = true }
                               Box(Modifier.fillMaxSize().graphicsLayer {
                                   alpha = progress
@@ -705,7 +712,7 @@ fun LauncherScreen(
                                               apps = state.apps,
                                               onLaunch = { onIntent(HomeIntent.Launch(it)) },
                                               filter = appsFilter,
-                                              favorites = state.appearance.shortcuts.values.toSet(),
+                                              favorites = state.appearance.favoritePackages.toSet(),
                                               recents = state.appearance.recentPackages,
                                               onFilterChange = { appsFilter = it }
                                           )
@@ -770,6 +777,8 @@ fun LauncherScreen(
                         is AppearanceAction.SelectBackgroundColor -> HomeIntent.SelectBackgroundColor(action.argb)
                         is AppearanceAction.SelectAccent -> HomeIntent.SelectAccent(action.value)
                         is AppearanceAction.SelectTileShape -> HomeIntent.SelectTileShape(action.value)
+                        AppearanceAction.ToggleAnimations -> HomeIntent.ToggleAnimations
+                        is AppearanceAction.ToggleFavorite -> HomeIntent.ToggleFavorite(action.packageName)
                     })
                 },
                 onDismiss = { showLauncherSettings = false },
@@ -793,6 +802,7 @@ fun LauncherScreen(
                 previewData = compositionPreviewData,
                 onOpenDeviceTools = { showLauncherSettings = false; showDeviceTools = true },
                 onOpenWeatherSettings = { showLauncherSettings = false; showWeatherSettings = true },
+                onToggleFavorite = { onIntent(HomeIntent.ToggleFavorite(it)) },
                 weatherContent = {
                     com.tv.launcher.custom.weather.WeatherSettingsContent(
                         state = weatherState, onIntent = onIntent, onDismiss = {}, embedded = true

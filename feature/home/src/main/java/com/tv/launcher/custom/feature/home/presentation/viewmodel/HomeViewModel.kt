@@ -72,9 +72,27 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.SelectBackgroundColor -> updateAppearance { copy(backgroundImageUri = null, backgroundColorArgb = intent.argb) }
             HomeIntent.ClearCustomBackground -> updateAppearance { copy(backgroundImageUri = null, backgroundColorArgb = null) }
             is HomeIntent.ApplyImportedTheme -> updateAppearance {
-                intent.appearance.copy(shortcuts = shortcuts, recentPackages = recentPackages)
+                intent.appearance.copy(
+                    shortcuts = shortcuts,
+                    recentPackages = recentPackages,
+                    favoritePackages = favoritePackages,
+                    animationsEnabled = animationsEnabled
+                )
             }
             is HomeIntent.SelectTileShape -> updateAppearance { copy(tileShape = intent.value) }
+            HomeIntent.ToggleAnimations -> updateAppearance { copy(animationsEnabled = !animationsEnabled) }
+            is HomeIntent.ToggleFavorite -> {
+                val apps = (_state.value as? HomeUiState.Success)?.apps.orEmpty()
+                if (apps.any { it.packageName == intent.packageName }) {
+                    updateAppearance {
+                        copy(favoritePackages = if (intent.packageName in favoritePackages) {
+                            favoritePackages - intent.packageName
+                        } else {
+                            favoritePackages + intent.packageName
+                        })
+                    }
+                }
+            }
             is HomeIntent.SelectShortcut -> {
                 val apps = (_state.value as? HomeUiState.Success)?.apps.orEmpty()
                 if (intent.slot in 0..4 && (intent.packageName.isEmpty() || apps.any { it.packageName == intent.packageName })) {

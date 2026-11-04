@@ -112,6 +112,7 @@ import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
+import com.tv.launcher.custom.core.ui.theme.LocalAnimationsEnabled
 
 import kotlinx.coroutines.delay
 
@@ -173,6 +174,7 @@ fun CompositionCanvas(
         (!settingsInTopBar && composition.rail?.items.orEmpty().split(',').any(::isSettingsLabel)))
     val hostBackground = com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage.current
     val hasCustomBackground = com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible.current || hostBackground != null
+    val animationsEnabled = LocalAnimationsEnabled.current
     BoxWithConstraints(modifier) {
         val landscape = if (hasCustomBackground) null else when (composition.bgStyle) {
             BgStyle.LANDSCAPE -> ImageBitmap.imageResource(com.tv.launcher.custom.core.ui.R.drawable.glass_landscape)
@@ -267,7 +269,7 @@ fun CompositionCanvas(
                                 verticalArrangement = Arrangement.spacedBy((composition.spacing ?: 16).d())
                             ) {
                                 contentBlocks.forEachIndexed { order, (i, block) ->
-                                    val animateBlock = block.appContent != null || !block.usesCardLayout()
+                                    val animateBlock = animationsEnabled && (block.appContent != null || !block.usesCardLayout())
                                     val entrance = remember(composition, i) {
                                         Animatable(if (animateBlock) 0f else 1f)
                                     }
@@ -608,6 +610,7 @@ private fun CardsRow(block: ThemeBlock, data: CanvasData, interactive: Boolean, 
     val n = minOf(block.maxItems ?: 8, (data.itemCount(block) - base).coerceAtLeast(0))
     val padding = block.rPadding().d()
     val revealed = remember { mutableSetOf<Int>() }
+    val animationsEnabled = LocalAnimationsEnabled.current
     LazyRow(
         Modifier.fillMaxWidth().padding(horizontal = padding, vertical = 8.d()),
         horizontalArrangement = Arrangement.spacedBy(block.rSpacing().d())
@@ -615,7 +618,7 @@ private fun CardsRow(block: ThemeBlock, data: CanvasData, interactive: Boolean, 
         items(n) { index ->
             EnteringCard(
                 delayMillis = minOf(index, 8) * 35L,
-                enabled = index !in revealed
+                enabled = animationsEnabled && index !in revealed
             ) {
                 AppCard(block, index + base, data, interactive, firstItemFocusRequester.takeIf { index == 0 })
             }
@@ -631,6 +634,7 @@ private fun CardsGrid(block: ThemeBlock, data: CanvasData, interactive: Boolean,
     val base = block.itemOffset ?: 0
     val n = minOf(block.maxItems ?: 12, (data.itemCount(block) - base).coerceAtLeast(0))
     val revealed = remember { mutableSetOf<Int>() }
+    val animationsEnabled = LocalAnimationsEnabled.current
     BoxWithConstraints {
         val cellWidth = ((maxWidth.value - (2 * block.rPadding()) - ((cols - 1) * block.rSpacing())) / cols).coerceAtLeast(1f)
         val computedHeight = (cellWidth / block.rAspect().ratio).toInt().coerceIn(32, 320)
@@ -644,7 +648,7 @@ private fun CardsGrid(block: ThemeBlock, data: CanvasData, interactive: Boolean,
                     rowIdx.forEach { index ->
                         EnteringCard(
                             delayMillis = minOf(index, 8) * 35L,
-                            enabled = index !in revealed
+                            enabled = animationsEnabled && index !in revealed
                         ) {
                             AppCard(effectiveBlock, index + base, data, interactive, firstItemFocusRequester.takeIf { index == 0 })
                         }

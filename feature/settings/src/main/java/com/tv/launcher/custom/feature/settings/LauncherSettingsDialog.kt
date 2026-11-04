@@ -57,6 +57,7 @@ import kotlinx.collections.immutable.persistentListOf
 private enum class SettingsCategory(@StringRes val title: Int, val icon: ImageVector) {
     HOME(R.string.launcher_home, Icons.Default.Home),
     THEMES(R.string.theme_picker_title, Icons.Default.GridView),
+    FAVORITES(R.string.settings_favorites, Icons.Default.Star),
     BACKGROUND(R.string.appearance_background, Icons.Default.Wallpaper),
     APPEARANCE(R.string.settings_appearance, Icons.Default.Tune),
     WEATHER(R.string.weather_settings_title, Icons.Default.Cloud),
@@ -81,6 +82,7 @@ fun LauncherSettingsDialog(
     previewData: CanvasData = PlaceholderCanvasData,
     onOpenDeviceTools: () -> Unit = {},
     onOpenWeatherSettings: () -> Unit = {},
+    onToggleFavorite: (String) -> Unit = {},
     weatherContent: (@Composable () -> Unit)? = null,
     deviceToolsContent: (@Composable () -> Unit)? = null
 ) {
@@ -93,6 +95,7 @@ fun LauncherSettingsDialog(
             onExportTheme, onOpenOnlineThemes, onCreateCustomTheme, installedThemes,
             onEditInstalledTheme, onApplyInstalledTheme, onDeleteInstalledTheme, apps, previewData,
             onOpenDeviceTools, onOpenWeatherSettings,
+            onToggleFavorite = onToggleFavorite,
             weatherContent = weatherContent, deviceToolsContent = deviceToolsContent
         )
     }
@@ -117,6 +120,7 @@ private fun LauncherSettingsContent(
     previewData: CanvasData,
     onOpenDeviceTools: () -> Unit,
     onOpenWeatherSettings: () -> Unit,
+    onToggleFavorite: (String) -> Unit = {},
     initialCategory: SettingsCategory = SettingsCategory.HOME,
     weatherContent: (@Composable () -> Unit)? = null,
     deviceToolsContent: (@Composable () -> Unit)? = null
@@ -279,6 +283,26 @@ private fun LauncherSettingsContent(
                              }
                             }
                         }
+                        SettingsCategory.FAVORITES -> Column(
+                            Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            SettingsHeading(stringResource(R.string.settings_favorites), stringResource(R.string.settings_favorites_intro))
+                            if (apps.isEmpty()) {
+                                Text(stringResource(R.string.settings_favorites_empty), color = SettingsColors.muted, fontSize = 14.sp)
+                            } else {
+                                apps.sortedBy { it.label.lowercase() }.forEach { app ->
+                                    val isFavorite = app.packageName in appearance.favoritePackages
+                                    SettingsButton(
+                                        label = app.label,
+                                        selected = isFavorite,
+                                        icon = if (isFavorite) Icons.Default.Check else Icons.Default.Add,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = { onToggleFavorite(app.packageName) }
+                                    )
+                                }
+                            }
+                        }
                         SettingsCategory.BACKGROUND -> Column(
                             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -341,6 +365,16 @@ private fun LauncherSettingsContent(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             SettingsHeading(stringResource(R.string.settings_appearance), stringResource(R.string.settings_appearance_intro))
+                            SettingsSectionTitle(stringResource(R.string.settings_animations))
+                            Column {
+                                SettingsButton(
+                                    label = stringResource(if (appearance.animationsEnabled) R.string.settings_animations_on else R.string.settings_animations_off),
+                                    icon = Icons.Default.Animation,
+                                    selected = appearance.animationsEnabled,
+                                    onClick = { onIntent(AppearanceAction.ToggleAnimations) }
+                                )
+                                Text(stringResource(R.string.settings_animations_intro), color = SettingsColors.muted, fontSize = 12.sp)
+                            }
                             Column {
                                 SettingsThemePreview(appearance, activeTheme?.composition,
                                     activeName, apps, safePreviewData,

@@ -30,6 +30,7 @@ import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
 import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
+import com.tv.launcher.custom.core.ui.theme.LocalAnimationsEnabled
 import com.tv.launcher.custom.core.model.apps.AppEntry
 import com.tv.launcher.custom.core.theme.CompositionCanvas
 import com.tv.launcher.custom.core.theme.defaultCompositionFor
@@ -71,7 +72,8 @@ fun SettingsThemePreview(
                     LocalShortcutPackages provides appearance.shortcuts,
                     LocalSetShortcut provides { _, _ -> },
                     LocalBackgroundImageVisible provides (appearance.backgroundImageUri != null),
-                    LocalBackgroundImage provides backgroundImage
+                    LocalBackgroundImage provides backgroundImage,
+                    LocalAnimationsEnabled provides appearance.animationsEnabled
                 ) {
                     Box(Modifier.fillMaxSize().background(LocalLauncherStyle.current.palette.background)) {
                         backgroundImage?.let {

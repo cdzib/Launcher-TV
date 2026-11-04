@@ -32,6 +32,8 @@ sealed interface HomeIntent {
     data object ClearCustomBackground : HomeIntent
     data class ApplyImportedTheme(val appearance: LauncherAppearance) : HomeIntent
     data class SelectTileShape(val value: TileShapeChoice) : HomeIntent
+    data object ToggleAnimations : HomeIntent
+    data class ToggleFavorite(val packageName: String) : HomeIntent
     data class SelectShortcut(val slot: Int, val packageName: String) : HomeIntent
     data object Retry : HomeIntent
     data class SearchWeatherCities(val query: String) : HomeIntent

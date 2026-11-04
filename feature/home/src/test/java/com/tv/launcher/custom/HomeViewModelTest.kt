@@ -161,6 +161,27 @@ class HomeViewModelTest {
     }
 
     @Test
+    fun `favoritos se agregan y quitan desde la configuracion`() {
+        val vm = viewModel(listOf(AppEntry("a", "A"), AppEntry("b", "B")))
+        vm.onIntent(HomeIntent.ToggleFavorite("a"))
+        vm.onIntent(HomeIntent.ToggleFavorite("b"))
+        assertEquals(listOf("a", "b"), (vm.state.value as HomeUiState.Success).appearance.favoritePackages)
+        vm.onIntent(HomeIntent.ToggleFavorite("a"))
+        assertEquals(listOf("b"), (vm.state.value as HomeUiState.Success).appearance.favoritePackages)
+        vm.onIntent(HomeIntent.ToggleFavorite("missing"))
+        assertEquals(listOf("b"), (vm.state.value as HomeUiState.Success).appearance.favoritePackages)
+    }
+
+    @Test
+    fun `animaciones se pueden desactivar y sobreviven a un tema importado`() {
+        val vm = viewModel(listOf(AppEntry("a", "A")))
+        vm.onIntent(HomeIntent.ToggleAnimations)
+        assertEquals(false, (vm.state.value as HomeUiState.Success).appearance.animationsEnabled)
+        vm.onIntent(HomeIntent.ApplyImportedTheme(LauncherAppearance(themeId = ThemeId.GOOGLE_TV)))
+        assertEquals(false, (vm.state.value as HomeUiState.Success).appearance.animationsEnabled)
+    }
+
+    @Test
     fun `aplicar tema importado conserva los accesos webos existentes`() {
         val vm = viewModel(listOf(AppEntry("app.one", "One")))
         vm.onIntent(HomeIntent.SelectShortcut(0, "app.one"))

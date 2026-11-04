@@ -131,6 +131,13 @@
     <string name="apps_filter_recents">Recientes</string>
     <string name="apps_filter_empty">No hay apps para este filtro.</string>
     <string name="apps_filter_show_all">Ver todas</string>
+    <string name="settings_favorites">Favoritos</string>
+    <string name="settings_favorites_intro">Elige las apps que aparecen en tu fila de Favoritos.</string>
+    <string name="settings_favorites_empty">Instala apps para agregarlas a Favoritos.</string>
+    <string name="settings_animations">Animaciones</string>
+    <string name="settings_animations_on">Animaciones activadas</string>
+    <string name="settings_animations_off">Animaciones desactivadas</string>
+    <string name="settings_animations_intro">Desactívalas si el launcher se siente lento en tu TV.</string>
     <string name="no_document_picker_hint">Estos temas vienen incluidos en la app. Para importar otros paquetes usa el explorador interno o el selector del sistema si está disponible.</string>
     <string name="online_themes">Temas online</string>
     <string name="online_themes_title">Catálogo y URL de temas</string>

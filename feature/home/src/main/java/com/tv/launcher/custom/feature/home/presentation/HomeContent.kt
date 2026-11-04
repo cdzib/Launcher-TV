@@ -32,12 +32,14 @@ fun HomeContent(
     val onOpenApps = LocalOpenApps.current
     val onOpenHome = com.tv.launcher.custom.core.ui.components.LocalOpenHome.current
     val section = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
-    val installedCanvasData = remember(state.apps, state.appearance.shortcuts, state.appearance.recentPackages, onIntent, onOpenSettings, onOpenApps, onUnavailableNavigation, onOpenPersonalization, onOpenSearch, onOpenHome) {
-        val favoritePackages = state.appearance.shortcuts.values.toSet()
+    val installedCanvasData = remember(state.apps, state.appearance.shortcuts, state.appearance.recentPackages, state.appearance.favoritePackages, onIntent, onOpenSettings, onOpenApps, onUnavailableNavigation, onOpenPersonalization, onOpenSearch, onOpenHome) {
+        val favorites = state.appearance.favoritePackages.mapNotNull { packageName ->
+            state.apps.firstOrNull { it.packageName == packageName }
+        }
         val recents = state.appearance.recentPackages.mapNotNull { packageName ->
             state.apps.firstOrNull { it.packageName == packageName }
         }
-        InstalledAppsCanvasData(state.apps, state.apps.filter { it.packageName in favoritePackages },
+        InstalledAppsCanvasData(state.apps, favorites,
             onLaunch, onOpenApps, onOpenSettings, onUnavailableNavigation,
             onOpenPersonalization = onOpenPersonalization,
             onOpenSearch = onOpenSearch,

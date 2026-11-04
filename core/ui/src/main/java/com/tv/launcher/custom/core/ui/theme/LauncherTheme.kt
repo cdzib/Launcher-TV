@@ -113,6 +113,9 @@ val LocalBackgroundImageVisible = staticCompositionLocalOf { false }
 /** Host-owned wallpaper already drawn behind the canvas; keeps glass surfaces on the real image. */
 val LocalBackgroundImage = staticCompositionLocalOf<ImageBitmap?> { null }
 
+/** Global motion switch persisted with the appearance; false keeps all content static. */
+val LocalAnimationsEnabled = staticCompositionLocalOf { true }
+
 @Composable
 fun LauncherTheme(themeId: ThemeId, content: @Composable () -> Unit) {
     LauncherTheme(LauncherAppearance(themeId), content)
