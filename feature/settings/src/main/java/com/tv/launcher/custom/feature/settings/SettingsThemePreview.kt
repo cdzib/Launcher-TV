@@ -28,10 +28,13 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.dp
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
+import com.tv.launcher.custom.core.ui.theme.LocalAnimationsEnabled
 import com.tv.launcher.custom.core.model.apps.AppEntry
-import com.tv.launcher.custom.core.theme.layout.*
-import com.tv.launcher.custom.core.ui.components.*
 import com.tv.launcher.custom.core.theme.CompositionCanvas
+import com.tv.launcher.custom.core.theme.defaultCompositionFor
+import com.tv.launcher.custom.core.ui.components.*
 import com.tv.launcher.custom.core.model.theme.*
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +43,7 @@ import kotlinx.coroutines.withContext
 /** Render at launcher size, then scale the whole scene, including typography and native blocks. */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun SettingsThemePreview(
+fun SettingsThemePreview(
     appearance: LauncherAppearance,
     composition: ThemeComposition?,
     name: String,
@@ -50,6 +53,7 @@ internal fun SettingsThemePreview(
     assetUris: Map<String, String> = emptyMap()
 ) {
     val previewData = remember(data, assetUris) { data.withThemeAssets(assetUris) }
+    val backgroundImage = rememberBackgroundImage(appearance.backgroundImageUri)
     Layout(
         modifier = modifier.clipToBounds().clearAndSetSemantics { }
             .pointerInput(Unit) {
@@ -66,28 +70,20 @@ internal fun SettingsThemePreview(
                 CompositionLocalProvider(
                     LocalOpenApps provides {},
                     LocalShortcutPackages provides appearance.shortcuts,
-                    LocalSetShortcut provides { _, _ -> }
+                    LocalSetShortcut provides { _, _ -> },
+                    LocalBackgroundImageVisible provides (appearance.backgroundImageUri != null),
+                    LocalBackgroundImage provides backgroundImage,
+                    LocalAnimationsEnabled provides appearance.animationsEnabled
                 ) {
                     Box(Modifier.fillMaxSize().background(LocalLauncherStyle.current.palette.background)) {
-                        SettingsBackgroundImage(appearance.backgroundImageUri, Modifier.fillMaxSize())
-                        if (composition != null) {
-                            CompositionCanvas(
-                                composition, previewData, Modifier.fillMaxSize(), name,
-                                interactive = false, transparentBackground = true
-                            )
-                        } else {
-                            val focus = remember { FocusRequester() }
-                            when (appearance.themeId) {
-                                ThemeId.WEBOS -> WebOsLayout(apps, focus, {}, {})
-                                ThemeId.FIRE_TV -> TopNavLayout(apps, focus, {}, {})
-                                ThemeId.ROKU -> SideGridLayout(apps, focus, {}, {})
-                                ThemeId.TIZEN -> TizenLayout(apps, focus, {}, {})
-                                ThemeId.ANDROID_TV -> AndroidTvLayout(apps, focus, {}, {})
-                                ThemeId.GOOGLE_TV -> GoogleTvLayout(apps, focus, {}, {})
-                                ThemeId.APPLE_TV -> AppleTvLayout(apps, focus, {}, {})
-                                ThemeId.FREE_MY_TV -> FreeMyTvLayout(apps, apps.firstOrNull(), focus, {}, {})
-                            }
+                        backgroundImage?.let {
+                            Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                         }
+                        CompositionCanvas(
+                            composition ?: defaultCompositionFor(appearance.themeId),
+                            previewData, Modifier.fillMaxSize(), name,
+                            interactive = false, transparentBackground = true
+                        )
                     }
                 }
             }
@@ -109,7 +105,7 @@ internal fun SettingsThemePreview(
 }
 
 @Composable
-internal fun SettingsBackgroundImage(uri: String?, modifier: Modifier = Modifier) {
+internal fun rememberBackgroundImage(uri: String?): ImageBitmap? {
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
     val bitmap by produceState<ImageBitmap?>(null, uri, isPreview) {
@@ -134,5 +130,5 @@ internal fun SettingsBackgroundImage(uri: String?, modifier: Modifier = Modifier
             }
         }
     }
-    bitmap?.let { Image(it, null, modifier, contentScale = ContentScale.Crop) }
+    return bitmap
 }

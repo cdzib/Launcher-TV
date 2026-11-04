@@ -1,6 +1,7 @@
 package com.tv.launcher.custom.feature.search
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,13 +46,14 @@ fun AppSearchDialog(
 }
 
 @Composable
-internal fun AppSearchScreen(
+fun AppSearchScreen(
     apps: List<AppEntry>,
     onLaunch: (String) -> Unit,
     onDismiss: () -> Unit,
     initialQuery: String = "",
     initialKeyboardVisible: Boolean = false,
-    onOpenSettings: () -> Unit = onDismiss
+    onOpenSettings: () -> Unit = onDismiss,
+    embedded: Boolean = false
 ) {
     val style = LocalLauncherStyle.current
     var query by rememberSaveable { mutableStateOf(initialQuery) }
@@ -63,6 +65,9 @@ internal fun AppSearchScreen(
     val fieldFocus = remember { FocusRequester() }
     val context = LocalContext.current
     val isPreview = LocalInspectionMode.current
+    BackHandler(enabled = embedded) {
+        if (keyboardVisible) keyboardVisible = false else onDismiss()
+    }
 
     LaunchedEffect(selectedApp?.packageName) { selectedPackage = selectedApp?.packageName }
 
@@ -85,10 +90,10 @@ internal fun AppSearchScreen(
 
     Box(
         Modifier.fillMaxSize()
-            .background(style.palette.background)
+            .then(if (embedded) Modifier else Modifier.background(style.palette.background))
             .onPreviewKeyEvent { event ->
                 if (event.key == Key.Escape && event.type == KeyEventType.KeyUp) {
-                    onDismiss()
+                    if (keyboardVisible) keyboardVisible = false else onDismiss()
                     true
                 } else false
             }
@@ -108,7 +113,9 @@ internal fun AppSearchScreen(
                 onOpenSettings = onOpenSettings,
                 onVoice = voiceUnavailable,
                 onShowKeyboard = showKeyboard,
-                onToggleKeyboard = toggleKeyboard
+                onToggleKeyboard = toggleKeyboard,
+                embedded = embedded,
+                selectedPackage = selectedApp?.packageName
             )
         } else {
             SearchBaseLayout(
@@ -125,7 +132,8 @@ internal fun AppSearchScreen(
                 onDismiss = onDismiss,
                 onVoice = voiceUnavailable,
                 onShowKeyboard = showKeyboard,
-                onToggleKeyboard = toggleKeyboard
+                onToggleKeyboard = toggleKeyboard,
+                embedded = embedded
             )
         }
     }
@@ -151,6 +159,31 @@ private val SearchPreviewApps = listOf(
     AppEntry("sample.steam", "Steam Link"),
     AppEntry("sample.radio", "Radio")
 )
+
+@Preview(name = "Buscar integrado · Sin rail propio", widthDp = 720, heightDp = 460)
+@Composable
+private fun AppSearchEmbeddedPreview() = LauncherTheme(ThemeId.ROKU) {
+    AppSearchScreen(SearchPreviewApps, {}, {}, embedded = true)
+}
+
+@Preview(name = "Buscar integrado · Material de vidrio", widthDp = 720, heightDp = 460)
+@Composable
+private fun AppSearchGlassPreview() = LauncherTheme(ThemeId.ROKU) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalLauncherStyle provides LocalLauncherStyle.current.copy(
+            glassSurfaces = true, declarativeSurfaces = true,
+            tileRadius = androidx.compose.ui.unit.Dp(14f)
+        )
+    ) {
+        AppSearchScreen(SearchPreviewApps, {}, {}, embedded = true)
+    }
+}
+
+@Preview(name = "Buscar integrado · Teclado", widthDp = 720, heightDp = 460)
+@Composable
+private fun AppSearchEmbeddedKeyboardPreview() = LauncherTheme(ThemeId.WEBOS) {
+    AppSearchScreen(SearchPreviewApps, {}, {}, initialKeyboardVisible = true, embedded = true)
+}
 
 @Preview(name = "Buscar · webOS", widthDp = 960, heightDp = 540)
 @Composable

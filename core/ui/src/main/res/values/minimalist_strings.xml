@@ -1,0 +1,4 @@
+<resources>
+    <string name="theme_empty_favorites">Aún no tienes favoritos. Agrégalos desde Aplicaciones.</string>
+    <string name="theme_empty_apps">No hay aplicaciones disponibles.</string>
+</resources>

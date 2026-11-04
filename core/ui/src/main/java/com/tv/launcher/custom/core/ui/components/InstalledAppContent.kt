@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -32,6 +33,8 @@ import androidx.tv.material3.Text
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 import com.tv.launcher.custom.core.model.apps.AppEntry
 import com.tv.launcher.custom.core.model.theme.ThemeId
 import kotlinx.coroutines.Dispatchers
@@ -47,7 +50,7 @@ fun resolveShortcut(apps: List<AppEntry>, shortcuts: Map<Int, String>, slot: Int
 
 /** Only installed-package artwork. No promotional screenshots or synthetic destinations. */
 @Composable
-private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier) {
+private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier, contentScale: Float = 1f) {
     val context = LocalContext.current
     val inspection = LocalInspectionMode.current
     val artwork by produceState<ImageBitmap?>(null, app.packageName, inspection) {
@@ -61,49 +64,59 @@ private fun InstalledAppArtwork(app: AppEntry, modifier: Modifier = Modifier) {
     }
     Box(modifier, contentAlignment = Alignment.Center) {
         artwork?.let { Image(it, null, Modifier.fillMaxSize(), contentScale = ContentScale.Fit) }
-            ?: Text(app.label.take(2).uppercase(), color = Color.White, fontSize = 28.sp)
+            ?: Text(app.label.take(2).uppercase(), color = Color.White, fontSize = (28 * contentScale).sp)
     }
 }
 
 @Composable
-fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modifier = Modifier) {
+fun InstalledAppHero(app: AppEntry?, onLaunch: (String) -> Unit, modifier: Modifier = Modifier,
+    interactive: Boolean = true, contentScale: Float = 1f, glass: Boolean = false) {
     val palette = LocalLauncherStyle.current.palette
     val openApps = LocalOpenApps.current
-    val shape = RoundedCornerShape(8.dp)
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
+    val transparentSurface = glass || hasCustomBackground
+    val shape = RoundedCornerShape(((if (glass) 18 else 8) * contentScale).dp)
     Surface(
-        onClick = { if (app == null) openApps() else onLaunch(app.packageName) },
-        modifier = modifier,
+        onClick = { if (interactive) { if (app == null) openApps() else onLaunch(app.packageName) } },
+        modifier = modifier.then(Modifier.focusProperties { canFocus = interactive }),
         shape = ClickableSurfaceDefaults.shape(shape),
-        colors = ClickableSurfaceDefaults.colors(containerColor = palette.surface, focusedContainerColor = palette.surface),
-        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
+        colors = ClickableSurfaceDefaults.colors(containerColor = if (transparentSurface) Color.Transparent else palette.surface, focusedContainerColor = if (transparentSurface) Color.Transparent else palette.surface),
+        border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(if (glass) 1.dp else 2.dp, Color.White), shape = shape)),
         scale = ClickableSurfaceDefaults.scale(focusedScale = 1f)
     ) {
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f))))) {
-            if (app != null) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding(20.dp))
-            Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(0.5f).padding(28.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(app?.label ?: stringResource(R.string.launcher_apps), color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(stringResource(R.string.open_installed_app), color = Color(0xFFE0E0E0), fontSize = 16.sp)
+        Box(Modifier.fillMaxSize().then(if (glass) Modifier.glassSurfaceBackground(shape) else if (!hasCustomBackground) Modifier.background(Brush.horizontalGradient(listOf(palette.background, palette.surface, palette.accent.copy(alpha = 0.25f)))) else Modifier)) {
+            if (app != null && !glass) InstalledAppArtwork(app, Modifier.align(Alignment.CenterEnd).fillMaxWidth(0.55f).fillMaxHeight().padding((20 * contentScale).dp), contentScale)
+            Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(if (glass) 1f else 0.5f).padding((28 * contentScale).dp), verticalArrangement = Arrangement.spacedBy(((if (glass) 8 else 12) * contentScale).dp)) {
+                if (glass) Text(stringResource(R.string.featured_installed_app), color = Color.White.copy(alpha = 0.72f), fontSize = (10 * contentScale).sp)
+                Text(app?.label ?: stringResource(R.string.launcher_apps), color = Color.White, fontSize = (28 * contentScale).sp, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(stringResource(R.string.open_installed_app), color = Color(0xFFE0E0E0), fontSize = ((if (glass) 12 else 16) * contentScale).sp)
+                if (glass) Text(stringResource(R.string.open_app_action),
+                    Modifier.background(Color.White.copy(alpha = 0.18f), RoundedCornerShape(50)).padding(horizontal = (18 * contentScale).dp, vertical = (8 * contentScale).dp),
+                    color = Color.White, fontSize = (12 * contentScale).sp)
             }
         }
     }
 }
 
 @Composable
-fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: Dp, modifier: Modifier = Modifier) {
-    LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(4.dp)) {
+fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: Dp, modifier: Modifier = Modifier,
+    interactive: Boolean = true, contentScale: Float = 1f) {
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
+    val container = if (hasCustomBackground) Color.Transparent else Color(0xFF202026)
+    LazyRow(modifier, horizontalArrangement = Arrangement.spacedBy((12 * contentScale).dp), contentPadding = PaddingValues((4 * contentScale).dp)) {
         items(apps, key = AppEntry::packageName) { app ->
-            val shape = RoundedCornerShape(6.dp)
+            val shape = RoundedCornerShape((6 * contentScale).dp)
             Surface(
-                onClick = { onLaunch(app.packageName) },
-                modifier = Modifier.width(height * 1.75f).height(height),
+                onClick = { if (interactive) onLaunch(app.packageName) },
+                modifier = Modifier.width(height * 1.75f).height(height).focusProperties { canFocus = interactive },
                 shape = ClickableSurfaceDefaults.shape(shape),
-                colors = ClickableSurfaceDefaults.colors(containerColor = Color(0xFF202026), focusedContainerColor = Color(0xFF202026)),
+                colors = ClickableSurfaceDefaults.colors(containerColor = container, focusedContainerColor = container),
                 border = ClickableSurfaceDefaults.border(focusedBorder = Border(BorderStroke(2.dp, Color.White), shape = shape)),
                 scale = ClickableSurfaceDefaults.scale(focusedScale = 1.03f)
             ) {
-                Column(Modifier.fillMaxSize().padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    InstalledAppArtwork(app, Modifier.weight(1f).fillMaxWidth())
-                    Text(app.label, color = Color.White, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Column(Modifier.fillMaxSize().padding((8 * contentScale).dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    InstalledAppArtwork(app, Modifier.weight(1f).fillMaxWidth(), contentScale)
+                    Text(app.label, color = Color.White, fontSize = (13 * contentScale).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
         }
@@ -114,6 +127,12 @@ fun InstalledAppCards(apps: List<AppEntry>, onLaunch: (String) -> Unit, height: 
 @Composable
 private fun InstalledAppHeroPreview() = LauncherTheme(ThemeId.WEBOS) {
     InstalledAppHero(AppEntry("preview.app", "Aplicación"), {}, Modifier.fillMaxSize())
+}
+
+@Preview(name = "Glass featured installed app", widthDp = 572, heightDp = 182)
+@Composable
+private fun InstalledAppHeroGlassPreview() = LauncherTheme(ThemeId.APPLE_TV) {
+    InstalledAppHero(AppEntry("preview.app", "Aplicación"), {}, Modifier.fillMaxSize(), interactive = false, glass = true)
 }
 
 @Preview(widthDp = 800, heightDp = 150)

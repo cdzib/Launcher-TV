@@ -37,6 +37,18 @@ class InstalledThemeStore(private val rootDirectory: File) {
             version?.let { File(stagingDirectory, "catalog-version.txt").writeText(it) }
             val backupDirectory = File(rootDirectory, ".backup-${UUID.randomUUID()}")
             val hasBackup = installedDirectory.exists()
+            if (hasBackup) {
+                val historyDirectory = File(rootDirectory, ".history").apply { mkdirs() }
+                val pendingBackup = File(historyDirectory, ".pending-${UUID.randomUUID()}")
+                try {
+                    File(installedDirectory, "package.zip").copyTo(pendingBackup)
+                    check(pendingBackup.renameTo(File(historyDirectory, "${manifest.id}.zip"))) {
+                        "Could not preserve previous theme archive"
+                    }
+                } finally {
+                    pendingBackup.delete()
+                }
+            }
             if (hasBackup && !installedDirectory.renameTo(backupDirectory)) {
                 throw IllegalStateException("Could not stage existing theme")
             }
@@ -62,6 +74,12 @@ class InstalledThemeStore(private val rootDirectory: File) {
             .mapNotNull { load(it.name) }
             .sortedBy { it.name.lowercase() }
             .toList()
+    }
+
+    /** Last archive before replacement, kept outside the installed theme library. */
+    fun backupArchiveBytes(id: String): ByteArray? {
+        if (!isUuid(id)) return null
+        return File(rootDirectory, ".history/$id.zip").takeIf { it.isFile }?.readBytes()
     }
 
     fun load(id: String): InstalledTheme? {

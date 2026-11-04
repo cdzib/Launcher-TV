@@ -28,6 +28,29 @@ object SettingsColors {
     val destructive = Color(0xFFFFB4AB)
 }
 
+/** Neutral action styling for settings whose label contains custom content. */
+@Composable
+fun SettingsContentButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit
+) {
+    Button(
+        onClick = onClick, modifier = modifier.heightIn(min = 48.dp), enabled = enabled,
+        shape = ButtonDefaults.shape(RoundedCornerShape(12.dp)),
+        scale = ButtonDefaults.scale(focusedScale = 1.01f),
+        colors = ButtonDefaults.colors(
+            containerColor = SettingsColors.surface, contentColor = SettingsColors.text,
+            focusedContainerColor = SettingsColors.selected, focusedContentColor = SettingsColors.text
+        ),
+        border = ButtonDefaults.border(
+            focusedBorder = Border(BorderStroke(2.dp, SettingsColors.muted), inset = (-2).dp)
+        ),
+        content = content
+    )
+}
+
 @Composable
 fun SettingsButton(
     label: String,
@@ -49,7 +72,7 @@ fun SettingsButton(
         onClick = onClick, enabled = enabled, modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected },
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
         shape = ButtonDefaults.shape(RoundedCornerShape(12.dp)),
-        scale = ButtonDefaults.scale(focusedScale = 1.03f),
+        scale = ButtonDefaults.scale(focusedScale = 1.01f),
         colors = ButtonDefaults.colors(
             containerColor = when { primary -> SettingsColors.primary; selected -> SettingsColors.selected; else -> containerColor },
             contentColor = contentColor,
@@ -58,7 +81,10 @@ fun SettingsButton(
         ),
         border = ButtonDefaults.border(
             border = if (selected) Border(BorderStroke(1.dp, SettingsColors.accent)) else Border.None,
-            focusedBorder = Border(BorderStroke(3.dp, SettingsColors.text), inset = (-4).dp)
+            focusedBorder = Border(
+                BorderStroke(2.dp, SettingsColors.muted.copy(alpha = 0.75f)),
+                inset = (-2).dp
+            )
         )
     ) {
         if (icon != null) {

@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "themes": [
+    {
+      "id": "9456f89b-43bb-56d0-8a2e-1f44b76b9e10",
+      "name": "Aurora webOS",
+      "description": "Tema demo webOS incluido en el launcher",
+      "version": "1.0.0",
+      "downloadUrl": "https://raw.githubusercontent.com/tu-usuario/tu-repo/main/demo-themes/webos-demo.zip",
+      "sha256": "99c069ea1b9ee3dc8a19a3af20b5ab6a7a1c680dee772b24055ec909fd8787b0"
+    }
+  ]
+}

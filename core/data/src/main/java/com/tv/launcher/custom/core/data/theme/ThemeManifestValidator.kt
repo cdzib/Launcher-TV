@@ -38,11 +38,11 @@ object ThemeManifestValidator {
         val formatVersion = root.requiredInt("formatVersion")
         val validKeys = when (formatVersion) {
             1 -> root.keys == rootKeys || root.keys == rootKeys - "accentArgb"
-            2 -> root.keys == rootKeys + "composition" || root.keys == (rootKeys - "accentArgb") + "composition"
+            2, 3 -> root.keys == rootKeys + "composition" || root.keys == (rootKeys - "accentArgb") + "composition"
             else -> false
         }
         if (!validKeys) {
-            throw ThemeArchiveException("Theme manifest fields do not match format v1")
+            throw ThemeArchiveException("Theme manifest fields do not match the declared format version")
         }
 
         val id = root.requiredString("id")
@@ -87,10 +87,13 @@ object ThemeManifestValidator {
             else -> throw ThemeArchiveException("Unknown background type")
         }
 
-        val composition = if (formatVersion == 2) {
+        val composition = if (formatVersion >= 2) {
             val raw = runCatching { root.getValue("composition").toString() }
                 .getOrElse { throw ThemeArchiveException("Theme composition is required") }
             ThemeCompositionValidator.parse(raw).also { themeComposition ->
+                if (formatVersion < 3 && themeComposition.requiresFormatV3()) {
+                    throw ThemeArchiveException("Navigation positions require format v3")
+                }
                 val referencedAssets = themeComposition.blocks.flatMap { block ->
                     listOfNotNull(block.imageAsset) + block.contentItems.map { it.imageAsset }
                 }

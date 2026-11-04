@@ -13,5 +13,8 @@ data class LauncherAppearance(
     val backgroundImageUri: String? = null,
     val backgroundColorArgb: Long? = null,
     val accentColorArgb: Long? = null,
-    val installedThemeId: String? = null
+    val installedThemeId: String? = null,
+    val recentPackages: List<String> = emptyList(),
+    val favoritePackages: List<String> = emptyList(),
+    val animationsEnabled: Boolean = true
 )

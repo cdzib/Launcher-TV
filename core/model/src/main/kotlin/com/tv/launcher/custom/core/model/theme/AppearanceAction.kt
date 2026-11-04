@@ -7,4 +7,6 @@ sealed interface AppearanceAction {
     data class SelectBackgroundColor(val argb: Long) : AppearanceAction
     data class SelectAccent(val value: AccentChoice) : AppearanceAction
     data class SelectTileShape(val value: TileShapeChoice) : AppearanceAction
+    data object ToggleAnimations : AppearanceAction
+    data class ToggleFavorite(val packageName: String) : AppearanceAction
 }

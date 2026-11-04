@@ -9,7 +9,11 @@ import com.tv.launcher.custom.core.model.apps.ObserveAppsUseCase
 import com.tv.launcher.custom.feature.home.presentation.state.HomeEffect
 import com.tv.launcher.custom.feature.home.presentation.state.HomeIntent
 import com.tv.launcher.custom.feature.home.presentation.state.HomeUiState
+import com.tv.launcher.custom.feature.home.presentation.state.WeatherUiState
 import com.tv.launcher.custom.core.model.theme.*
+import com.tv.launcher.custom.core.model.weather.WeatherRepository
+import com.tv.launcher.custom.core.model.weather.WeatherSettings
+import com.tv.launcher.custom.core.model.weather.WeatherSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.Job
@@ -31,7 +35,9 @@ class HomeViewModel @Inject constructor(
     private val observeApps: ObserveAppsUseCase,
     private val launchApp: LaunchAppUseCase,
     private val observeAppearance: ObserveAppearanceUseCase,
-    private val setAppearance: SetAppearanceUseCase
+    private val setAppearance: SetAppearanceUseCase,
+    private val weatherRepository: WeatherRepository,
+    private val weatherSettingsRepository: WeatherSettingsRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Loading())
@@ -39,13 +45,18 @@ class HomeViewModel @Inject constructor(
 
     private val _effect = Channel<HomeEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
+    private val _weatherState = MutableStateFlow(WeatherUiState())
+    val weatherState: StateFlow<WeatherUiState> = _weatherState.asStateFlow()
 
     private var observeJob: Job? = null
     private var currentAppearance = LauncherAppearance()
     private val appearanceUpdateMutex = Mutex()
+    private var citySearchJob: Job? = null
+    private var weatherRefreshJob: Job? = null
 
     init {
         observe()
+        observeWeatherSettings()
     }
 
     fun onIntent(intent: HomeIntent) {
@@ -60,8 +71,28 @@ class HomeViewModel @Inject constructor(
             is HomeIntent.SelectBackgroundImage -> updateAppearance { copy(backgroundImageUri = intent.uri, backgroundColorArgb = null) }
             is HomeIntent.SelectBackgroundColor -> updateAppearance { copy(backgroundImageUri = null, backgroundColorArgb = intent.argb) }
             HomeIntent.ClearCustomBackground -> updateAppearance { copy(backgroundImageUri = null, backgroundColorArgb = null) }
-            is HomeIntent.ApplyImportedTheme -> updateAppearance { intent.appearance.copy(shortcuts = shortcuts) }
+            is HomeIntent.ApplyImportedTheme -> updateAppearance {
+                intent.appearance.copy(
+                    shortcuts = shortcuts,
+                    recentPackages = recentPackages,
+                    favoritePackages = favoritePackages,
+                    animationsEnabled = animationsEnabled
+                )
+            }
             is HomeIntent.SelectTileShape -> updateAppearance { copy(tileShape = intent.value) }
+            HomeIntent.ToggleAnimations -> updateAppearance { copy(animationsEnabled = !animationsEnabled) }
+            is HomeIntent.ToggleFavorite -> {
+                val apps = (_state.value as? HomeUiState.Success)?.apps.orEmpty()
+                if (apps.any { it.packageName == intent.packageName }) {
+                    updateAppearance {
+                        copy(favoritePackages = if (intent.packageName in favoritePackages) {
+                            favoritePackages - intent.packageName
+                        } else {
+                            favoritePackages + intent.packageName
+                        })
+                    }
+                }
+            }
             is HomeIntent.SelectShortcut -> {
                 val apps = (_state.value as? HomeUiState.Success)?.apps.orEmpty()
                 if (intent.slot in 0..4 && (intent.packageName.isEmpty() || apps.any { it.packageName == intent.packageName })) {
@@ -69,6 +100,83 @@ class HomeViewModel @Inject constructor(
                 }
             }
             HomeIntent.Retry -> observe()
+            is HomeIntent.SearchWeatherCities -> searchWeatherCities(intent.query)
+            is HomeIntent.UpdateWeatherCityQuery -> _weatherState.update {
+                it.copy(cityQuery = intent.query, cities = emptyList(), hasWeatherError = false)
+            }
+            is HomeIntent.SelectWeatherCity -> saveWeatherSettings { copy(city = intent.city, isEnabled = true) }
+            is HomeIntent.SetWeatherUnit -> saveWeatherSettings { copy(unit = intent.unit) }
+            is HomeIntent.SetWeatherEnabled -> saveWeatherSettings { copy(isEnabled = intent.isEnabled) }
+            HomeIntent.ClearWeatherSettings -> saveWeatherSettings { WeatherSettings(unit = unit) }
+            HomeIntent.RefreshWeather -> refreshWeather(_weatherState.value.settings)
+        }
+    }
+
+    private fun observeWeatherSettings() {
+        viewModelScope.launch {
+            weatherSettingsRepository.observeSettings().collect { settings ->
+                _weatherState.update { it.copy(settings = settings) }
+                if (settings.isEnabled && settings.city != null) refreshWeather(settings)
+                else {
+                    weatherRefreshJob?.cancel()
+                    _weatherState.update { it.copy(currentWeather = null, isLoadingWeather = false, hasWeatherError = false) }
+                }
+            }
+        }
+    }
+
+    private fun searchWeatherCities(query: String) {
+        citySearchJob?.cancel()
+        _weatherState.update { it.copy(cityQuery = query, cities = emptyList(), isSearchingCities = false, hasWeatherError = false) }
+        if (query.trim().length < MIN_WEATHER_QUERY_LENGTH) return
+        citySearchJob = viewModelScope.launch {
+            _weatherState.update { it.copy(isSearchingCities = true) }
+            try {
+                val results = weatherRepository.searchCities(query)
+                _weatherState.update { it.copy(cities = results, isSearchingCities = false) }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                _weatherState.update { it.copy(isSearchingCities = false, hasWeatherError = true) }
+            }
+        }
+    }
+
+    private fun saveWeatherSettings(transform: WeatherSettings.() -> WeatherSettings) {
+        viewModelScope.launch {
+            val settings = transform(_weatherState.value.settings)
+            if (settings.isEnabled && settings.city == null) {
+                _weatherState.update { it.copy(hasWeatherError = true) }
+                return@launch
+            }
+            try {
+                weatherSettingsRepository.saveSettings(settings)
+                _weatherState.update { it.copy(settings = settings, hasWeatherError = false) }
+                if (!settings.isEnabled || settings.city == null) {
+                    weatherRefreshJob?.cancel()
+                    _weatherState.update { it.copy(currentWeather = null, isLoadingWeather = false) }
+                }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                _weatherState.update { it.copy(hasWeatherError = true) }
+            }
+        }
+    }
+
+    private fun refreshWeather(settings: WeatherSettings) {
+        val city = settings.city ?: return
+        weatherRefreshJob?.cancel()
+        weatherRefreshJob = viewModelScope.launch {
+            _weatherState.update { it.copy(isLoadingWeather = true, hasWeatherError = false) }
+            try {
+                val weather = weatherRepository.getCurrentWeather(city, settings.unit)
+                _weatherState.update { it.copy(currentWeather = weather, isLoadingWeather = false) }
+            } catch (exception: CancellationException) {
+                throw exception
+            } catch (_: Exception) {
+                _weatherState.update { it.copy(isLoadingWeather = false, hasWeatherError = true) }
+            }
         }
     }
 
@@ -92,6 +200,11 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             if (launchApp(packageName) is DomainResult.Failure) {
                 _effect.send(HomeEffect.ShowMessage(R.string.error_launch))
+            } else {
+                updateAppearance {
+                    copy(recentPackages = (listOf(packageName) + recentPackages.filterNot { it == packageName })
+                        .take(MAX_RECENT_APPS))
+                }
             }
         }
     }
@@ -120,5 +233,10 @@ class HomeViewModel @Inject constructor(
                 appearanceUpdateMutex.unlock()
             }
         }
+    }
+
+    private companion object {
+        const val MIN_WEATHER_QUERY_LENGTH = 2
+        const val MAX_RECENT_APPS = 12
     }
 }

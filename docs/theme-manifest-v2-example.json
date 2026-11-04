@@ -1,0 +1,21 @@
+{
+  "formatVersion": 2,
+  "id": "f0d3e5a2-743c-4a1e-90cb-28775a60acb2",
+  "name": "Mi composición",
+  "layout": "WEBOS",
+  "accentArgb": "#FFFFC078",
+  "background": {
+    "type": "solid",
+    "argb": "#FF101820"
+  },
+  "tileShape": "rounded",
+  "composition": {
+    "spacing": 16,
+    "padding": 24,
+    "blocks": [
+      { "type": "title", "textSize": 36, "align": "START" },
+      { "type": "favorites_row", "maxItems": 5, "itemWidth": 72, "itemHeight": 72 },
+      { "type": "apps_grid", "columns": 4, "maxItems": 12, "showLabels": true }
+    ]
+  }
+}

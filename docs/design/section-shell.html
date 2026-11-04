@@ -1,0 +1,1356 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Launcher · Section shell</title>
+<style>
+  :root{
+    --ink:#07080c;
+    --ink-2:#0a0c12;
+    --panel:#11141b;
+    --panel-2:#171b24;
+    --text:#f2f5f7;
+    --muted:#98a2b2;
+    --dim:#7f8897;
+    --line:rgba(255,255,255,.075);
+    --line-strong:rgba(255,255,255,.14);
+    --accent:#37d9c5;
+    --accent-ink:#03211d;
+    --warm:#f0c98d;
+    --danger:#ff6b6b;
+    --ease:cubic-bezier(.2,.8,.2,1);
+  }
+  /* Perfil visual: cada tema conserva su paleta y su radio; el shell solo los consume. */
+  .tv[data-theme="webos"]{
+    --bg-a:#080a11;--bg-b:#07080c;--bg-c:#05060a;
+    --accent:#37d9c5;--accent-ink:#03211d;--warm:#f0c98d;
+    --text:#f2f5f7;--muted:#98a2b2;--dim:#7f8897;
+    --surface-soft:rgba(255,255,255,.032);
+    --tile-radius:22px;
+    --hero-a:#8a2f4a;--hero-b:#481a3b;--hero-c:#1b0e21;--hero-sun:#ffdca7;
+    --spine-a:rgba(10,12,18,.82);--spine-b:rgba(6,7,11,.9);
+  --surface:#11141B;}
+  .tv[data-theme="firetv"]{
+    --bg-a:#1b1b1b;--bg-b:#111111;--bg-c:#0a0a0a;
+    --accent:#53b8ff;--accent-ink:#04121d;--warm:#ffd479;
+    --text:#f6f8fa;--muted:#aab4c0;--dim:#7e8997;
+    --surface-soft:rgba(255,255,255,.05);
+    --tile-radius:14px;
+    --hero-a:#10324a;--hero-b:#2b7ea8;--hero-c:#07141d;--hero-sun:#cfefff;
+    --spine-a:rgba(26,26,26,.86);--spine-b:rgba(12,12,12,.92);
+  --surface:#242424;}
+  .tv[data-theme="roku"]{
+    --bg-a:#3a1752;--bg-b:#35134d;--bg-c:#1c0a28;
+    --accent:#ffffff;--accent-ink:#35134d;--warm:#e5d4f5;
+    --text:#ffffff;--muted:#d8c7e8;--dim:#a78bbd;
+    --surface-soft:rgba(255,255,255,.065);
+    --tile-radius:8px;
+    --hero-a:#4b1d69;--hero-b:#7a3d9a;--hero-c:#220d31;--hero-sun:#f0d7ff;
+    --spine-a:rgba(48,18,68,.88);--spine-b:rgba(30,9,44,.94);
+  --surface:#361955;}
+  .tv[data-theme="tizen"]{
+    --bg-a:#0b0d12;--bg-b:#08090b;--bg-c:#050609;
+    --accent:#6b7bff;--accent-ink:#060a2a;--warm:#aab4ff;
+    --text:#f1f4f8;--muted:#9aa7bb;--dim:#77849a;
+    --surface-soft:rgba(255,255,255,.035);
+    --tile-radius:18px;
+    --hero-a:#1b2350;--hero-b:#3a4d9e;--hero-c:#0a0e24;--hero-sun:#c9d2ff;
+    --spine-a:rgba(12,14,20,.88);--spine-b:rgba(6,7,10,.94);
+  --surface:#17191D;}
+  .tv[data-theme="androidtv"]{
+    --bg-a:#071326;--bg-b:#071326;--bg-c:#040a16;
+    --accent:#8ab4f8;--accent-ink:#061426;--warm:#c7dcff;
+    --text:#f2f6fb;--muted:#a8b8cc;--dim:#7f92aa;
+    --surface-soft:rgba(255,255,255,.04);
+    --tile-radius:16px;
+    --hero-a:#0d2b4a;--hero-b:#2e6da0;--hero-c:#06131f;--hero-sun:#d8ecff;
+    --spine-a:rgba(8,20,38,.88);--spine-b:rgba(4,9,19,.94);
+  --surface:#17243A;}
+  .tv[data-theme="googletv"]{
+    --bg-a:#101827;--bg-b:#0d1420;--bg-c:#070b12;
+    --accent:#a8c7fa;--accent-ink:#0a1526;--warm:#d7e3ff;
+    --text:#f3f6fb;--muted:#a4b3c9;--dim:#7e8da5;
+    --surface-soft:rgba(255,255,255,.04);
+    --tile-radius:24px;
+    --hero-a:#16304a;--hero-b:#3d6a8c;--hero-c:#0a1622;--hero-sun:#e4f1ff;
+    --spine-a:rgba(16,24,39,.88);--spine-b:rgba(8,12,20,.94);
+  --surface:#1B2940;}
+  .tv[data-theme="appletv"]{
+    --bg-a:#0b0908;--bg-b:#090807;--bg-c:#050403;
+    --accent:#ffc078;--accent-ink:#1a1004;--warm:#ffd7a3;
+    --text:#f6efe8;--muted:#c9b7a7;--dim:#968171;
+    --surface-soft:rgba(255,255,255,.045);
+    --tile-radius:20px;
+    --hero-a:#4a2a18;--hero-b:#a35d2a;--hero-c:#1b0f08;--hero-sun:#ffe0b0;
+    --spine-a:rgba(16,12,9,.9);--spine-b:rgba(8,6,4,.95);
+  --surface:#30231B;}
+  .tv[data-theme="freemytv"]{
+    --bg-a:#0b1730;--bg-b:#090d19;--bg-c:#050810;
+    --accent:#168cff;--accent-ink:#031426;--warm:#8fc6ff;
+    --text:#f2f6fb;--muted:#9fb2ca;--dim:#7a8da4;
+    --surface-soft:rgba(255,255,255,.04);
+    --tile-radius:16px;
+    --hero-a:#0b2a52;--hero-b:#1a5fa8;--hero-c:#061427;--hero-sun:#cfe6ff;
+    --spine-a:rgba(9,17,32,.9);--spine-b:rgba(5,9,18,.95);
+  --surface:#20232D;}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;background:#000;color:var(--text);overflow:hidden;
+    font-family:"Avenir Next","SF Pro Display","Helvetica Neue",Inter,Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  button{font:inherit;color:inherit}
+  #fit{
+    position:absolute;left:50%;top:50%;width:1920px;height:1080px;
+    transform-origin:center;overflow:hidden;
+  }
+  body.capture #fit{position:static;transform:none!important;left:0;top:0}
+  body.capture{overflow:hidden}
+  .tv{
+    position:relative;width:1920px;height:1080px;overflow:hidden;
+    background:
+      radial-gradient(1100px 620px at 76% -14%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 60%),
+      radial-gradient(900px 620px at 4% 112%, color-mix(in srgb, var(--hero-b) 16%, transparent), transparent 62%),
+      linear-gradient(156deg,var(--bg-a) 0%,var(--bg-b) 52%,var(--bg-c) 100%);
+    transition:background .35s var(--ease);
+  }
+  .grain{
+    position:absolute;inset:0;z-index:60;pointer-events:none;opacity:.035;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+  }
+
+  /* ---------- spine ---------- */
+  .spine{
+    position:absolute;left:0;top:0;bottom:0;width:104px;z-index:30;
+    display:flex;flex-direction:column;align-items:center;padding:24px 0 22px;
+    background:linear-gradient(180deg,var(--spine-a),var(--spine-b));
+    border-right:1px solid var(--line);
+    backdrop-filter:blur(22px);
+    transition:background .35s var(--ease);
+  }
+  .brand{
+    width:44px;height:44px;border-radius:14px;display:grid;place-items:center;
+    background:linear-gradient(145deg,color-mix(in srgb,var(--accent) 88%,#fff),var(--accent));
+    color:var(--accent-ink);
+    font-weight:800;font-size:15px;letter-spacing:-.08em;
+    box-shadow:0 10px 34px color-mix(in srgb,var(--accent) 22%,transparent), inset 0 1px 0 rgba(255,255,255,.5);
+    flex:0 0 auto;
+    transition:background .35s var(--ease),color .35s var(--ease);
+  }
+  .brand span{transform:translateY(-1px)}
+  .nav{position:relative;margin-top:46px;width:100%;display:flex;flex-direction:column;align-items:center;gap:12px}
+  .nav-indicator{
+    position:absolute;left:0;top:20px;width:3px;height:32px;border-radius:0 3px 3px 0;
+    background:var(--accent);box-shadow:0 0 18px color-mix(in srgb,var(--accent) 75%,transparent);
+    transition:transform .34s var(--ease),background .35s var(--ease);
+  }
+  .nav-item{
+    position:relative;width:72px;height:72px;border:0;border-radius:18px;cursor:pointer;
+    background:transparent;color:var(--muted);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:6px;
+    transition:background .18s,color .18s,transform .18s;
+  }
+  .nav-item svg{width:23px;height:23px;display:block}
+  .nav-item .label{font-size:10.5px;font-weight:600;letter-spacing:.005em}
+  .nav-item:hover{background:rgba(255,255,255,.045);color:var(--text)}
+  .nav-item.active{color:var(--accent);background:color-mix(in srgb,var(--accent) 11%,transparent)}
+  .nav-item.active .label{color:var(--accent)}
+  .nav-item.focused{outline:2px solid rgba(255,255,255,.9);outline-offset:2px;color:var(--text)}
+  .spine-bottom{margin-top:auto;display:flex;flex-direction:column;align-items:center;gap:14px}
+  .avatar{
+    width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;
+    color:#1a1207;background:linear-gradient(145deg,#f7d9a6,#d8a75c);
+    box-shadow:0 0 0 1px rgba(255,255,255,.18), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  /* ---------- stage ---------- */
+  .stage{position:absolute;left:104px;top:0;right:0;bottom:0;padding:30px 56px 24px 56px;z-index:10}
+  .systemline{
+    height:32px;display:flex;align-items:center;justify-content:space-between;color:var(--muted);
+    font-size:12.5px;letter-spacing:.002em;
+  }
+  .system-left{display:flex;align-items:center;gap:10px}
+  .status-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px color-mix(in srgb,var(--accent) 80%,transparent)}
+  .profile-pill{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 6px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.025);cursor:pointer;color:var(--muted);transition:background .16s,border-color .16s}
+  .profile-pill:hover{background:rgba(255,255,255,.05);border-color:var(--line-strong)}
+  .profile-pill b{color:var(--text);font-weight:600;font-size:12px}
+  .system-right{display:flex;align-items:center;gap:18px}
+  .weather{display:flex;align-items:center;gap:9px;color:var(--text);font-size:13px}
+  .weather svg{width:18px;height:18px;color:var(--warm)}
+  .weather .place{color:var(--muted);font-size:12px}
+  .clock{font-size:34px;line-height:1;font-weight:500;letter-spacing:-.025em;color:var(--text);font-variant-numeric:tabular-nums}
+
+  .theme-tray{
+    position:absolute;left:56px;top:70px;z-index:55;display:flex;align-items:center;gap:8px;
+    padding:10px;border:1px solid var(--line-strong);border-radius:16px;
+    background:rgba(7,8,12,.94);backdrop-filter:blur(22px);box-shadow:0 24px 70px rgba(0,0,0,.5);
+    opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .18s,transform .18s,visibility .18s;
+  }
+  .theme-tray.open{opacity:1;visibility:visible;transform:none}
+  .tray-label{font-size:11px;color:var(--muted);padding:0 8px 0 4px;white-space:nowrap}
+  .theme-choice{
+    height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.035);
+    color:#d7dee7;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;
+    transition:background .15s,border-color .15s,color .15s;
+  }
+  .theme-choice i{width:9px;height:9px;border-radius:50%;background:var(--sw);display:block;box-shadow:0 0 10px color-mix(in srgb,var(--sw) 55%,transparent)}
+  .theme-choice:hover{background:rgba(255,255,255,.07);color:#fff}
+  .theme-choice.active{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);color:var(--text)}
+
+  .viewport{position:relative;height:calc(100% - 32px);margin-top:4px}
+  .view{
+    position:absolute;inset:0;opacity:0;visibility:hidden;pointer-events:none;
+    transform:translateX(26px);transition:opacity .19s linear,transform .3s var(--ease),visibility .3s;
+  }
+  .view.active{opacity:1;visibility:visible;pointer-events:auto;transform:none}
+  .view.leaving{opacity:0;visibility:visible;transform:translateX(-22px);transition:opacity .16s linear,transform .22s var(--ease)}
+  @keyframes caret{0%,49%{opacity:1}50%,100%{opacity:0}}
+  @media (prefers-reduced-motion: reduce){
+    .view{transition:none;transform:none}
+    .nav-indicator{transition:none}
+    .caret{animation:none}
+  }
+
+  /* ---------- shared type ---------- */
+  .eyebrow{font-size:12px;color:var(--muted);letter-spacing:.01em}
+  h1{margin:0;font-size:46px;line-height:1.03;letter-spacing:-.042em;font-weight:600}
+  .subtitle{margin-top:9px;color:var(--muted);font-size:14px;letter-spacing:.002em}
+  .section-head{display:flex;align-items:flex-end;justify-content:space-between;padding-top:10px}
+  .row-head{display:flex;align-items:center;justify-content:space-between;margin-top:26px}
+  .row-head h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+  .text-link{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12.5px;background:none;border:0;padding:6px 0;cursor:pointer;transition:color .18s}
+  .text-link:hover{color:var(--text)}
+  .text-link svg{width:15px;height:15px}
+  .hints{position:absolute;left:0;right:0;bottom:2px;display:flex;align-items:center;justify-content:space-between;color:var(--dim);font-size:11.5px}
+  .hint-set{display:flex;align-items:center;gap:14px}
+  .hint{display:flex;align-items:center;gap:6px}
+  kbd{
+    min-width:20px;height:19px;padding:0 5px;border-radius:5px;display:inline-grid;place-items:center;
+    background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);
+    color:#aab3c1;font-family:inherit;font-size:10.5px;line-height:1;
+  }
+
+  /* ---------- home ---------- */
+  .home-head{padding-top:8px;display:flex;align-items:flex-end;justify-content:space-between}
+  .home-head h1{font-size:48px}
+  .home-head .date{color:var(--muted);font-size:14px;margin-top:10px}
+  .content-tabs{display:none;align-items:center;gap:6px;margin-top:14px}
+  .content-tab{height:34px;padding:0 14px;border-radius:9px;border:1px solid transparent;background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;transition:background .16s,color .16s,border-color .16s}
+  .content-tab:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .content-tab.active{color:var(--text);background:color-mix(in srgb,var(--accent) 12%,transparent);border-color:color-mix(in srgb,var(--accent) 28%,transparent)}
+  .tizen-tabs{display:none;align-items:center;justify-content:center;gap:10px;margin-top:14px}
+  .tizen-tab{height:38px;min-width:112px;padding:0 22px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer}
+  .tizen-tab.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .tv[data-theme="firetv"] .content-tabs,
+  .tv[data-theme="googletv"] .content-tabs{display:flex}
+  .tv[data-theme="tizen"] .tizen-tabs{display:flex}
+  .tv[data-theme="firetv"] .hero-row,
+  .tv[data-theme="googletv"] .hero-row{margin-top:18px}
+  .tv[data-theme="tizen"] .hero-row{margin-top:18px}
+  .hero-row{display:grid;grid-template-columns:1fr 512px;gap:26px;margin-top:26px}
+  .hero{
+    position:relative;height:372px;border-radius:24px;overflow:hidden;border:1px solid rgba(255,255,255,.09);
+    box-shadow:0 30px 90px rgba(0,0,0,.38);
+  }
+  .hero-art{position:absolute;inset:0;background:
+    radial-gradient(circle at 74% 30%, var(--hero-sun) 0 5.4%, color-mix(in srgb,var(--hero-sun) 45%,transparent) 6.8%, transparent 20%),
+    radial-gradient(80% 120% at 76% 18%, var(--hero-a) 0%, var(--hero-b) 42%, var(--hero-c) 78%, var(--hero-c) 100%);
+    overflow:hidden;
+  }
+  .hero-art::before{
+    content:"";position:absolute;left:-12%;right:-12%;bottom:-40%;height:82%;
+    background:radial-gradient(ellipse at 36% 18%, color-mix(in srgb,var(--hero-b) 62%,#fff) 0%, var(--hero-b) 34%, var(--hero-a) 62%, var(--hero-c) 100%);
+    border-radius:52% 48% 0 0 / 46% 42% 0 0;transform:rotate(-3deg);
+  }
+  .hero-art::after{
+    content:"";position:absolute;left:-16%;right:-22%;bottom:-58%;height:74%;
+    background:linear-gradient(180deg,color-mix(in srgb,var(--hero-c) 82%,#000) 0%,var(--hero-c) 100%);
+    border-radius:52% 48% 0 0 / 44% 46% 0 0;transform:rotate(5deg);opacity:.97;
+  }
+  .hero-scrim{position:absolute;inset:0;background:
+    linear-gradient(90deg,rgba(5,6,10,.92) 0%,rgba(5,6,10,.62) 34%,rgba(5,6,10,.12) 64%,transparent 80%),
+    linear-gradient(0deg,rgba(5,6,10,.94) 0%,rgba(5,6,10,.15) 50%,transparent 70%);
+  }
+  .hero-copy{position:absolute;left:34px;right:34px;bottom:30px}
+  .tag{display:inline-flex;align-items:center;gap:7px;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.14);font-size:11px;color:#eef2f5;backdrop-filter:blur(8px)}
+  .tag i{width:5px;height:5px;border-radius:50%;background:var(--accent);display:block}
+  .hero-copy h2{margin:12px 0 0;font-size:40px;line-height:1;letter-spacing:-.045em;font-weight:600}
+  .meta{margin-top:10px;color:#c0c8d2;font-size:12.5px;letter-spacing:.01em}
+  .hero-actions{display:flex;gap:10px;margin-top:20px}
+  .btn{height:44px;padding:0 20px;border-radius:12px;border:1px solid transparent;display:inline-flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px;font-weight:600;letter-spacing:-.005em;transition:transform .18s,background .18s,box-shadow .18s}
+  .btn svg{width:16px;height:16px}
+  .btn-primary{background:var(--accent);color:var(--accent-ink);box-shadow:0 10px 28px color-mix(in srgb,var(--accent) 18%,transparent)}
+  .btn-ghost{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.13);color:var(--text);backdrop-filter:blur(10px)}
+  .btn.focused{outline:2px solid #fff;outline-offset:3px;transform:translateY(-1px)}
+  .btn-primary.focused{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 16%,transparent),0 14px 40px color-mix(in srgb,var(--accent) 28%,transparent)}
+
+  .continue{height:372px;display:flex;flex-direction:column}
+  .continue-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+  .continue-head h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+  .continue-list{display:flex;flex-direction:column;gap:12px}
+  .continue-card{
+    height:106px;border-radius:16px;border:1px solid var(--line);background:var(--surface-soft);
+    display:flex;align-items:center;gap:14px;padding:12px;position:relative;overflow:hidden;
+  }
+  .continue-card .thumb{width:124px;height:80px;border-radius:10px;position:relative;overflow:hidden;flex:0 0 auto;background:linear-gradient(145deg,#3a1d44,#8d3a4a)}
+  .continue-card:nth-child(1) .thumb{background:radial-gradient(circle at 70% 28%,#f3c58e 0 9%,transparent 10%),linear-gradient(150deg,#24304f,#4f2c66 55%,#1b1428)}
+  .continue-card:nth-child(2) .thumb{background:radial-gradient(circle at 28% 66%,#61e4d2 0 5%,transparent 6%),linear-gradient(150deg,#102d34,#0c4b52 55%,#071a20)}
+  .continue-card:nth-child(3) .thumb{background:radial-gradient(circle at 62% 34%,#ff9a63 0 8%,transparent 9%),linear-gradient(150deg,#3f1a19,#7d2d24 55%,#1d0d0d)}
+  .continue-card .thumb::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,.45),transparent 60%)}
+  .continue-card .copy{min-width:0;flex:1;padding-right:8px}
+  .continue-card .copy b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .continue-card .copy span{display:block;color:var(--muted);font-size:11.5px;margin-top:3px}
+  .progress{height:3px;border-radius:2px;background:rgba(255,255,255,.13);margin-top:10px;overflow:hidden}
+  .progress i{display:block;height:100%;background:var(--accent);border-radius:2px}
+  .continue-card.focused{border-color:rgba(255,255,255,.4);background:rgba(255,255,255,.055);box-shadow:0 0 0 2px rgba(255,255,255,.08)}
+
+  .app-row{display:flex;align-items:flex-start;gap:18px;margin-top:13px}
+  .app-chip{width:82px;border:0;background:none;padding:0;cursor:pointer;text-align:center;color:var(--muted)}
+  .app-chip .icon{width:72px;height:72px;border-radius:calc(var(--tile-radius) - 2px);margin:0 auto;transition:transform .18s,box-shadow .18s}
+  .app-chip .name{display:block;margin-top:8px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-chip.focused .icon{outline:2px solid #fff;outline-offset:3px;transform:translateY(-2px) scale(1.04);box-shadow:0 16px 38px rgba(0,0,0,.45)}
+  .app-chip.focused .name{color:var(--text)}
+
+  .poster-row{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:12px}
+  .poster{height:146px;border-radius:16px;border:1px solid var(--line);position:relative;overflow:hidden;background:linear-gradient(145deg,#1b2330,#0e1118)}
+  .poster::before{content:"";position:absolute;inset:0;opacity:.92}
+  .poster:nth-child(1)::before{background:radial-gradient(circle at 72% 30%,rgba(255,214,150,.9) 0 7%,transparent 8%),linear-gradient(150deg,#4a2230,#8d3b3f 52%,#1d1017)}
+  .poster:nth-child(2)::before{background:radial-gradient(circle at 26% 70%,rgba(97,228,210,.75) 0 6%,transparent 7%),linear-gradient(150deg,#0d2c38,#13515c 52%,#07191e)}
+  .poster:nth-child(3)::before{background:radial-gradient(circle at 64% 32%,rgba(255,159,99,.8) 0 6%,transparent 7%),linear-gradient(150deg,#301c10,#6d3a1d 52%,#170f09)}
+  .poster:nth-child(4)::before{background:radial-gradient(circle at 38% 36%,rgba(165,134,255,.75) 0 6%,transparent 7%),linear-gradient(150deg,#20182f,#3f2a67 52%,#100c19)}
+  .poster::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(4,5,8,.86) 0%,rgba(4,5,8,.14) 58%,transparent 80%)}
+  .poster .p-copy{position:absolute;left:16px;right:16px;bottom:13px}
+  .poster .p-copy b{display:block;font-size:14px;font-weight:600;letter-spacing:-.01em}
+  .poster .p-copy span{display:block;color:#b9c2ce;font-size:11px;margin-top:3px}
+  .poster.focused{outline:2px solid #fff;outline-offset:3px}
+
+  /* ---------- grid home (Roku / Free My TV) ---------- */
+  .home-grid{display:none}
+  .home-grid .home-head{padding-top:8px}
+  .grid-feature{position:relative;height:236px;border-radius:24px;overflow:hidden;border:1px solid var(--line);margin-top:22px}
+  .grid-feature-art{position:absolute;inset:0;background:
+    radial-gradient(circle at 72% 30%, var(--hero-sun) 0 5.6%, transparent 20%),
+    radial-gradient(80% 120% at 76% 18%, var(--hero-a) 0%, var(--hero-b) 46%, var(--hero-c) 100%);
+  }
+  .grid-feature-art::before{content:"";position:absolute;left:-12%;right:-12%;bottom:-52%;height:90%;
+    background:linear-gradient(160deg,color-mix(in srgb,var(--hero-b) 65%,#fff) 0%,var(--hero-b) 42%,var(--hero-a) 100%);
+    border-radius:52% 48% 0 0 / 46% 42% 0 0;transform:rotate(-3deg);opacity:.9}
+  .grid-feature-copy{position:absolute;left:30px;right:30px;bottom:24px}
+  .grid-feature-copy h2{margin:10px 0 0;font-size:32px;line-height:1;letter-spacing:-.04em;font-weight:600}
+  .grid-feature-copy .meta{margin-top:8px}
+  .grid-feature-copy .hero-actions{margin-top:16px}
+  .channel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:12px}
+  .channel-card{
+    height:142px;border-radius:var(--tile-radius);border:1px solid var(--line);background:var(--surface-soft);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;cursor:pointer;
+    transition:background .16s,border-color .16s,transform .16s,box-shadow .16s;
+  }
+  .channel-card .icon{width:62px;height:62px;border-radius:calc(var(--tile-radius) - 2px)}
+  .channel-card .name{font-size:11.5px;color:var(--muted);max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .channel-card:hover{background:color-mix(in srgb,var(--accent) 7%,transparent)}
+  .channel-card.focused{outline:2px solid var(--text);outline-offset:3px;background:color-mix(in srgb,var(--accent) 9%,transparent);transform:translateY(-2px)}
+  .channel-card.focused .name{color:var(--text)}
+  .view[data-layout="grid"] .home-cinematic{display:none}
+  .view[data-layout="grid"] .home-grid{display:block}
+  .tv[data-theme="freemytv"] .channel-grid{grid-template-columns:repeat(4,1fr)}
+  .tv[data-theme="freemytv"] .channel-card{height:150px;border-radius:var(--tile-radius)}
+  .tv[data-theme="freemytv"] .grid-feature{height:226px}
+  .tv[data-theme="roku"] .channel-card{background:color-mix(in srgb,var(--accent) 5%,transparent);border-color:rgba(255,255,255,.14)}
+
+  /* Los perfiles cinematográficos ganan ancho cuando la columna de continuar no aplica. */
+  .tv[data-theme="firetv"] .continue,
+  .tv[data-theme="tizen"] .continue,
+  .tv[data-theme="androidtv"] .continue,
+  .tv[data-theme="googletv"] .continue,
+  .tv[data-theme="appletv"] .continue{display:none}
+  .tv[data-theme="firetv"] .hero-row,
+  .tv[data-theme="tizen"] .hero-row,
+  .tv[data-theme="androidtv"] .hero-row,
+  .tv[data-theme="googletv"] .hero-row,
+  .tv[data-theme="appletv"] .hero-row{grid-template-columns:1fr}
+  .tv[data-theme="firetv"] .hero{border-radius:18px;height:356px}
+  .tv[data-theme="tizen"] .hero{border-radius:26px;height:362px}
+  .tv[data-theme="androidtv"] .hero{border-radius:18px;height:350px}
+  .tv[data-theme="googletv"] .hero{border-radius:26px;height:356px}
+  .tv[data-theme="appletv"] .hero{border-radius:22px;height:410px}
+  .tv[data-theme="appletv"] .app-row{margin-top:18px}
+  .tv[data-theme="roku"] .home-head h1,
+  .tv[data-theme="freemytv"] .home-head h1{font-size:44px}
+  .tv[data-theme="roku"] .grid-feature{border-radius:12px}
+  .tv[data-theme="roku"] .btn-primary{color:var(--accent-ink)}
+  .tv[data-theme="roku"] .btn.focused{outline-color:var(--accent-ink)}
+
+  /* ---------- home layouts (app-centric) ---------- */
+  .home-layout{display:none;position:relative;height:100%;min-height:0}
+  #view-home[data-layout="webos"] .layout-webos,
+  #view-home[data-layout="rows"] .layout-rows,
+  #view-home[data-layout="roku"] .layout-roku,
+  #view-home[data-layout="apple"] .layout-apple,
+  #view-home[data-layout="freemytv"] .layout-freemytv{display:flex;flex-direction:column}
+  .layout-webos{gap:0}
+  .layout-rows{gap:0}
+  .layout-roku{gap:0}
+  .layout-apple{gap:0}
+  .layout-freemytv{gap:0}
+
+  .app-hero{
+    position:relative;overflow:hidden;border:1px solid var(--line);
+    border-radius:calc(var(--tile-radius) + 2px);
+    background:
+      radial-gradient(520px 260px at 80% 50%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 72%),
+      linear-gradient(105deg,var(--bg-c) 0%,var(--surface-soft) 48%,color-mix(in srgb,var(--accent) 16%,transparent) 100%);
+    display:flex;align-items:center;justify-content:space-between;gap:24px;
+    padding:30px 38px;margin-top:20px;flex:0 0 auto;
+  }
+  .app-hero::after{content:"";position:absolute;right:-60px;top:-80px;width:360px;height:360px;border-radius:50%;background:color-mix(in srgb,var(--accent) 12%,transparent);filter:blur(30px);pointer-events:none}
+  .app-hero .hero-copy{max-width:800px;position:relative;left:auto;right:auto;bottom:auto;z-index:1}
+  .app-hero .hero-copy h2{margin:9px 0 0;font-size:40px;line-height:1;letter-spacing:-.045em;font-weight:600}
+  .app-hero .hero-copy p{margin:9px 0 0;color:var(--muted);font-size:14px}
+  .app-hero .hero-actions{margin-top:20px}
+  .app-hero .hero-app-icon{position:relative;z-index:1;flex:0 0 auto;margin-right:18px}
+  .app-hero .hero-app-icon .icon{width:152px;height:152px;border-radius:calc(var(--tile-radius) + 8px);box-shadow:0 22px 60px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.3)}
+  .webos-hero{height:300px}
+  .rows-hero{flex:1 1 300px;min-height:280px;max-height:430px;height:auto;margin-top:16px}
+  .apple-hero{height:600px;margin-top:0}
+  .apple-hero .hero-app-icon .icon{width:190px;height:190px}
+  .apple-hero .hero-copy h2{font-size:46px}
+
+  .shortcut-row{display:flex;gap:10px;margin-top:14px;flex:0 0 auto}
+  .shortcut{flex:1;height:78px;border-radius:6px;display:flex;align-items:center;justify-content:center;text-align:center;padding:0 8px;font-size:13px;font-weight:600;line-height:1.15;cursor:pointer;transition:transform .16s,filter .16s}
+  .shortcut:nth-child(1){background:var(--accent);color:var(--accent-ink)}
+  .shortcut:nth-child(2){background:color-mix(in srgb,var(--accent) 82%,var(--surface));color:var(--text)}
+  .shortcut:nth-child(3){background:color-mix(in srgb,var(--accent) 64%,var(--surface));color:var(--text)}
+  .shortcut:nth-child(4){background:color-mix(in srgb,var(--accent) 46%,var(--surface));color:var(--text)}
+  .shortcut:nth-child(5){background:color-mix(in srgb,var(--accent) 28%,var(--surface));color:var(--text)}
+  .shortcut.focused{outline:2px solid var(--text);outline-offset:3px;transform:translateY(-1px)}
+
+  .app-chip-row{display:flex;gap:18px;margin-top:12px;flex:0 0 auto}
+  .app-card-row{display:flex;gap:14px;margin-top:12px;flex:0 0 auto}
+  .app-card{
+    flex:1 1 0;min-width:0;height:166px;border-radius:calc(var(--tile-radius) - 4px);border:1px solid var(--line);
+    background:var(--surface-soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+    cursor:pointer;transition:transform .16s,background .16s,box-shadow .16s;
+  }
+  .app-card .icon{width:78px;height:78px;border-radius:calc(var(--tile-radius) - 2px)}
+  .app-card .name{font-size:12px;color:var(--muted);max-width:250px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-card:hover{background:rgba(255,255,255,.055)}
+  .app-card.focused{outline:2px solid var(--text);outline-offset:3px;background:color-mix(in srgb,var(--accent) 8%,var(--surface-soft));transform:translateY(-2px)}
+  .app-card.focused .name{color:var(--text)}
+  .fire-second-row{display:none}
+
+  .rows-head{padding-top:8px;flex:0 0 auto}
+  .rows-head h1{font-size:40px}
+  .rows-body{display:flex;flex-direction:column;flex:1;min-height:0}
+  .rows-block{display:flex;flex-direction:column}
+  .rows-body .apps-block{order:1}
+  .rows-body .cards-block{order:2}
+  .tv[data-theme="googletv"] .rows-body .cards-block,
+  .tv[data-theme="tizen"] .rows-body .cards-block{order:1}
+  .tv[data-theme="googletv"] .rows-body .apps-block,
+  .tv[data-theme="tizen"] .rows-body .apps-block{order:2}
+  .tv[data-theme="firetv"] .rows-head,
+  .tv[data-theme="tizen"] .rows-head{display:none}
+  .tv[data-theme="firetv"] .rows-hero,
+  .tv[data-theme="tizen"] .rows-hero{margin-top:6px}
+  .tv[data-theme="firetv"] .fire-second-row{display:flex;margin-top:12px}
+  .tv[data-theme="firetv"] .rows-block .row-head{margin-top:18px}
+  .tv[data-theme="tizen"] .rows-block .row-head{margin-top:16px}
+  .tv[data-theme="firetv"] .app-card,
+  .tv[data-theme="androidtv"] .app-card{border-radius:8px}
+  .tv[data-theme="tizen"] .app-card{border-radius:14px}
+
+  /* Roku */
+  .roku-body{flex:1;display:grid;grid-template-columns:220px 1fr;gap:28px;padding-top:10px;min-height:0}
+  .roku-aside{display:flex;flex-direction:column;padding-top:8px}
+  .roku-aside h1{font-size:42px;letter-spacing:-.05em}
+  .roku-count{margin-top:8px;color:var(--muted);font-size:13px}
+  .roku-clock{margin-top:38px;font-size:42px;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+  .roku-note{margin-top:auto;color:var(--dim);font-size:12px;padding-bottom:24px}
+  .roku-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:16px;height:100%;min-height:0}
+  .roku-card{
+    border-radius:4px;border:1px solid rgba(255,255,255,.14);background:var(--surface);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;min-height:0;cursor:pointer;
+    transition:background .16s,transform .16s;
+  }
+  .roku-card .icon{width:150px;height:150px;border-radius:8px}
+  .roku-card .name{font-size:12px;color:var(--muted);max-width:88%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .roku-card.focused{outline:2px solid var(--text);outline-offset:3px;background:color-mix(in srgb,var(--accent) 9%,var(--surface-soft));transform:translateY(-2px)}
+  .roku-card.focused .name{color:var(--text)}
+
+  /* Apple TV */
+  .apple-body{flex:1;display:grid;grid-template-columns:220px 1fr;gap:24px;padding-top:8px;padding-bottom:26px;min-height:0}
+  .apple-panel{
+    border-radius:20px;border:1px solid rgba(255,255,255,.09);background:#2A211C;
+    padding:18px;display:flex;flex-direction:column;gap:9px;min-height:0;
+  }
+  .apple-mark{font-size:23px;font-weight:700;color:#fff;letter-spacing:-.03em}
+  .apple-clock{font-size:38px;line-height:1;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+  .apple-label{margin-top:15px;color:var(--muted);font-size:11px;letter-spacing:.03em}
+  .apple-list{display:flex;flex-direction:column;gap:9px;color:#f1e7dc;font-size:14px}
+  .apple-list span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .apple-note{margin-top:auto;color:var(--dim);font-size:11px;letter-spacing:.03em}
+  .apple-customize{height:34px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:transparent;color:#f1e7dc;font-size:11.5px;font-weight:600;cursor:pointer}
+  .apple-main{display:flex;flex-direction:column;min-height:0}
+  .apple-main .row-head{margin-top:auto}
+  .apple-main .app-card-row{margin-top:10px}
+
+  /* Free My TV */
+  .fmtv-head{display:flex;align-items:center;justify-content:space-between;padding-top:8px;flex:0 0 auto}
+  .fmtv-brand{display:flex;align-items:center;gap:12px}
+  .tvmark{width:40px;height:40px;border-radius:12px;background:var(--accent);display:grid;place-items:center;color:var(--accent-ink);font-size:12px;font-weight:800}
+  .fmtv-brand h1{font-size:34px;letter-spacing:-.045em}
+  .fmtv-meta{display:flex;align-items:center;gap:14px;color:var(--muted);font-size:12px}
+  .fmtv-customize{height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--surface-soft);color:var(--text);font-size:12px;font-weight:600;cursor:pointer}
+  .fmtv-featured{flex:1;display:flex;flex-direction:column;justify-content:center;padding:18px 12px;position:relative;min-height:0}
+  .fmtv-featured .eyebrow{color:var(--accent);font-weight:600;letter-spacing:.02em}
+  .fmtv-featured h2{margin:8px 0 0;font-size:44px;letter-spacing:-.05em;line-height:1}
+  .fmtv-featured p{margin:10px 0 0;max-width:620px;color:var(--muted);font-size:14px}
+  .fmtv-featured .hero-actions{margin-top:20px}
+  .fmtv-featured-icon{position:absolute;right:44px;top:50%;transform:translateY(-50%);opacity:.16;filter:blur(.4px);pointer-events:none}
+  .fmtv-featured-icon .icon{width:260px;height:260px;border-radius:56px}
+  .fmtv-favorites{
+    height:280px;margin-bottom:22px;border-radius:24px;border:1px solid var(--line);background:var(--surface-soft);
+    padding:16px;display:flex;flex-direction:column;flex:0 0 auto;
+  }
+  .fmtv-fav-head{display:flex;align-items:center;justify-content:space-between;color:var(--muted);font-size:11.5px}
+  .fmtv-fav-head span:first-child{font-weight:600;color:#c5ced9;letter-spacing:.01em}
+  .fmtv-fav-row{display:flex;gap:10px;margin-top:12px;flex:1;min-height:0}
+  .fmtv-fav{
+    flex:1;min-width:0;border-radius:18px;border:1px solid var(--line);background:var(--surface);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;cursor:pointer;
+    transition:transform .16s,background .16s;
+  }
+  .fmtv-fav .icon{width:62px;height:62px;border-radius:calc(var(--tile-radius) - 2px)}
+  .fmtv-fav .name{font-size:11px;color:var(--muted);max-width:88%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fmtv-fav:hover{background:color-mix(in srgb,var(--accent) 7%,var(--surface))}
+  .fmtv-fav.focused{outline:2px solid var(--text);outline-offset:3px;transform:translateY(-2px)}
+  .fmtv-fav.focused .name{color:var(--text)}
+
+  /* ---------- search ---------- */
+  .search-head{padding-top:8px;display:flex;align-items:flex-end;justify-content:space-between}
+  .search-head h1{font-size:46px}
+  .search-bar-row{display:flex;align-items:center;gap:12px;margin-top:24px}
+  .searchbar{
+    width:980px;height:66px;border-radius:18px;border:1px solid var(--line-strong);
+    background:rgba(255,255,255,.055);display:flex;align-items:center;gap:14px;padding:0 20px;
+    transition:border-color .18s,box-shadow .18s,background .18s;
+  }
+  .searchbar.active{border-color:color-mix(in srgb,var(--accent) 75%,transparent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 10%,transparent),0 20px 60px rgba(0,0,0,.32);background:rgba(255,255,255,.07)}
+  .searchbar svg{width:22px;height:22px;color:var(--muted);flex:0 0 auto}
+  .searchbar .query{font-size:24px;font-weight:500;letter-spacing:-.025em;color:var(--text)}
+  .caret{width:2px;height:27px;background:var(--accent);border-radius:2px;animation:caret 1.15s steps(1) infinite}
+  .searchbar .hint{margin-left:auto;color:var(--dim);font-size:12px;white-space:nowrap}
+  .voice{
+    width:66px;height:66px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.035);
+    display:grid;place-items:center;color:var(--muted);cursor:pointer;transition:background .18s,color .18s;
+  }
+  .voice svg{width:24px;height:24px}
+  .voice:hover{background:rgba(255,255,255,.07);color:var(--text)}
+  .voice.focused{outline:2px solid #fff;outline-offset:3px;color:var(--text)}
+  .search-filters{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .s-filter{height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;transition:background .16s,border-color .16s,color .16s}
+  .s-filter:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .s-filter.active{background:color-mix(in srgb,var(--accent) 12%,transparent);border-color:color-mix(in srgb,var(--accent) 45%,transparent);color:var(--accent)}
+
+  .results-head{display:flex;align-items:baseline;justify-content:space-between;margin-top:26px}
+  .results-head h2{margin:0;font-size:18px;font-weight:600;letter-spacing:-.02em}
+  .results-head span{color:var(--muted);font-size:12.5px}
+  .results{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:12px}
+  .result{
+    height:112px;border-radius:16px;border:1px solid var(--line);background:var(--surface-soft);
+    display:flex;align-items:center;gap:14px;padding:14px;cursor:pointer;transition:background .18s,border-color .18s,transform .18s;
+  }
+  .result .icon{width:64px;height:64px;border-radius:calc(var(--tile-radius) - 4px);flex:0 0 auto}
+  .result .copy{min-width:0;flex:1}
+  .result b{display:block;font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .result span{display:block;margin-top:3px;color:var(--muted);font-size:11.5px}
+  .result .open{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:var(--dim);border:1px solid var(--line);flex:0 0 auto}
+  .result .open svg{width:14px;height:14px}
+  .result.focused{border-color:color-mix(in srgb,var(--accent) 78%,transparent);background:color-mix(in srgb,var(--accent) 7.5%,transparent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 14%,transparent),0 18px 44px rgba(0,0,0,.28);transform:translateY(-1px)}
+  .result.focused .open{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+  .suggestions{display:flex;align-items:center;gap:8px;margin-top:18px;color:var(--muted);font-size:12px}
+  .suggestion{height:32px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface-soft);color:#c6ced9;font-size:12px;cursor:pointer;transition:background .16s,color .16s}
+  .suggestion:hover{background:rgba(255,255,255,.07);color:var(--text)}
+
+  .keyboard{position:absolute;left:0;right:0;bottom:34px;height:324px;display:grid;grid-template-columns:1fr 356px;gap:18px}
+  .keys-panel{
+    border-radius:22px;border:1px solid var(--line);background:rgba(10,12,18,.72);backdrop-filter:blur(22px);
+    padding:16px;display:flex;flex-direction:column;gap:9px;box-shadow:0 24px 70px rgba(0,0,0,.32);
+  }
+  .key-row{display:flex;gap:9px;justify-content:center}
+  .key{
+    height:52px;flex:1;border-radius:12px;border:1px solid rgba(255,255,255,.07);background:rgba(255,255,255,.05);
+    display:grid;place-items:center;font-size:17px;font-weight:500;color:#e9eef3;cursor:pointer;
+    transition:background .14s,color .14s,transform .14s;
+  }
+  .key:hover{background:rgba(255,255,255,.09)}
+  .key.focused{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 15%,transparent);transform:translateY(-1px)}
+  .key.wide{flex:3.2}
+  .key.wide-2{flex:1.5}
+  .key svg{width:18px;height:18px}
+  .key-label{font-size:11px;font-weight:600;letter-spacing:.02em}
+  .keyboard-aside{
+    border-radius:22px;border:1px solid var(--line);background:var(--surface-soft);
+    padding:18px;display:flex;flex-direction:column;
+  }
+  .keyboard-aside h3{margin:0 0 12px;font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.01em}
+  .recent{display:flex;flex-direction:column;gap:2px}
+  .recent button{display:flex;align-items:center;gap:10px;background:none;border:0;padding:9px 8px;border-radius:9px;color:#c6ced8;font-size:12.5px;cursor:pointer;text-align:left}
+  .recent button:hover{background:rgba(255,255,255,.045)}
+  .recent svg{width:14px;height:14px;color:var(--dim)}
+  .aside-tip{margin-top:auto;color:var(--dim);font-size:11px;line-height:1.5}
+
+  /* ---------- apps ---------- */
+  .apps-head{padding-top:8px;display:flex;align-items:flex-end;justify-content:space-between}
+  .apps-head h1{font-size:46px}
+  .filters{display:flex;align-items:center;gap:9px;margin-top:22px}
+  .chip{
+    height:38px;padding:0 17px;border-radius:999px;border:1px solid var(--line);background:transparent;
+    color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;transition:background .16s,color .16s,border-color .16s;
+  }
+  .chip:hover{color:var(--text);background:rgba(255,255,255,.04)}
+  .chip.active{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .chip.focused{outline:2px solid var(--accent);outline-offset:2px}
+  .sort{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12.5px;background:none;border:0;cursor:pointer;padding:8px 0}
+  .sort strong{color:var(--text);font-weight:600}
+  .sort svg{width:14px;height:14px}
+  .apps-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:18px 16px;margin-top:26px}
+  .app-tile{
+    height:164px;border-radius:18px;border:1px solid transparent;background:transparent;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;
+    transition:background .16s,border-color .16s,transform .16s,box-shadow .16s;
+  }
+  .app-tile .icon{width:84px;height:84px;border-radius:var(--tile-radius)}
+  .app-tile .name{font-size:12px;color:var(--muted);max-width:128px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .app-tile:hover{background:rgba(255,255,255,.035)}
+  .app-tile.focused{background:rgba(255,255,255,.05);border-color:color-mix(in srgb,var(--accent) 72%,transparent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent) 22%,transparent),0 18px 44px rgba(0,0,0,.34);transform:translateY(-2px)}
+  .app-tile.focused .name{color:var(--text)}
+
+  .icon{
+    position:relative;display:grid;place-items:center;color:#fff;
+    background:linear-gradient(145deg,var(--c1,#4a5568),var(--c2,#1a202c));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 8px 22px rgba(0,0,0,.26);
+    overflow:hidden;flex:0 0 auto;
+  }
+  .icon::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 90% at 20% 0%,rgba(255,255,255,.22),transparent 55%);pointer-events:none}
+  .icon svg{width:52%;height:52%;position:relative;z-index:1;filter:drop-shadow(0 2px 6px rgba(0,0,0,.18))}
+
+  /* ---------- helper / toast ---------- */
+  .helper{
+    position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:100;
+    display:flex;align-items:center;gap:16px;padding:9px 14px;border-radius:999px;
+    background:rgba(10,12,18,.86);border:1px solid rgba(255,255,255,.10);backdrop-filter:blur(18px);
+    color:#aeb7c4;font-size:11.5px;white-space:nowrap;
+  }
+  .helper b{color:#fff;font-weight:600}
+  .helper .sep{width:1px;height:14px;background:rgba(255,255,255,.13)}
+  body.capture .helper{display:none}
+  .toast{
+    position:absolute;left:50%;bottom:26px;transform:translate(-50%,10px);z-index:70;
+    padding:10px 16px;border-radius:12px;background:rgba(10,12,18,.92);border:1px solid var(--line-strong);
+    color:#dbe2ea;font-size:12.5px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  /* Navegación propia del perfil: no existe un rail global añadido. */
+  .spine{display:none}
+  .stage{left:0}
+  .native-navigation{position:absolute;z-index:35;display:flex;gap:12px;align-items:center}
+  .native-navigation button{min-height:48px;padding:0 22px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-size:16px;cursor:pointer}
+  .native-navigation button.active{background:var(--accent);color:var(--accent-ink)}
+  .native-navigation button:focus-visible{outline:3px solid var(--text);outline-offset:3px}
+  .native-title{font-size:32px;font-weight:600;margin-bottom:16px}
+  .native-context{color:var(--muted);font-size:17px;margin-bottom:16px}
+  .tv[data-theme="roku"] .native-navigation{left:56px;top:100px;bottom:40px;width:470px;flex-direction:column;align-items:stretch}
+  .tv[data-theme="roku"] .native-navigation button{text-align:left;border-radius:2px}
+  .tv[data-theme="roku"] .viewport{margin-left:510px}
+  .tv[data-theme="roku"] .roku-body{display:block;padding-bottom:26px}
+  .tv[data-theme="roku"] .roku-aside{display:none}
+  .tv[data-theme="appletv"] .native-navigation{left:32px;top:84px;bottom:44px;width:340px;padding:24px;background:#2a211c;border-radius:20px;flex-direction:column;align-items:stretch}
+  .tv[data-theme="appletv"] .viewport{margin-left:350px}
+  .tv[data-theme="appletv"] .apple-body{display:block}
+  .tv[data-theme="appletv"] .apple-panel{display:none}
+  .tv[data-theme="appletv"] .apple-main{height:100%}
+  .tv[data-theme="webos"] .native-navigation,
+  .tv[data-theme="tizen"] .native-navigation{left:20px;top:110px;width:88px;flex-direction:column;align-items:stretch}
+  .tv[data-theme="webos"] .native-navigation button,
+  .tv[data-theme="tizen"] .native-navigation button{padding:0 6px;font-size:13px}
+  .tv[data-theme="webos"] .viewport,
+  .tv[data-theme="tizen"] .viewport{margin-left:76px}
+  .tv[data-theme="androidtv"] .native-navigation,
+  .tv[data-theme="googletv"] .native-navigation,
+  .tv[data-theme="freemytv"] .native-navigation{left:400px;top:78px}
+  .tv[data-theme="androidtv"] .viewport,
+  .tv[data-theme="googletv"] .viewport,
+  .tv[data-theme="freemytv"] .viewport{padding-top:66px;height:calc(100% - 100px)}
+  .tv[data-theme="firetv"] .native-navigation{left:56px;right:56px;top:495px}
+  .tv[data-theme="firetv"] .rows-body{padding-top:62px}
+  .tv[data-theme="firetv"] .rows-hero{flex:none;height:405px;min-height:405px}
+  .tv[data-theme="firetv"] .app-card{height:138px}
+  .tv[data-theme="firetv"] .view:not(#view-home){padding-top:505px}
+  .tv[data-theme="firetv"]:not([data-section="home"]) .native-navigation{top:86px}
+  .tv[data-theme="firetv"]:not([data-section="home"]) .view{padding-top:80px}
+</style>
+</head>
+<body>
+<div id="fit">
+  <main class="tv" data-theme="webos">
+    <div class="grain"></div>
+
+    <aside class="spine" aria-label="Secciones">
+      <div class="brand" aria-label="TV Launcher"><span>tv</span></div>
+      <nav class="nav">
+        <span class="nav-indicator" id="navIndicator"></span>
+        <button class="nav-item active" data-section="home" aria-current="page">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/><path d="M9 21v-7h6v7"/></svg>
+          <span class="label">Inicio</span>
+        </button>
+        <button class="nav-item" data-section="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+          <span class="label">Buscar</span>
+        </button>
+        <button class="nav-item" data-section="apps">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></svg>
+          <span class="label">Apps</span>
+        </button>
+      </nav>
+      <div class="spine-bottom">
+        <button class="nav-item" id="settingsButton" title="Ajustes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21h-4v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3v-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>
+          <span class="label">Ajustes</span>
+        </button>
+        <div class="avatar" title="César">C</div>
+      </div>
+    </aside>
+
+    <div class="stage">
+      <div class="systemline">
+        <div class="system-left">
+          <button class="profile-pill" id="themeButton" aria-haspopup="true" aria-expanded="false">
+            <span class="status-dot"></span>
+            <b id="themeLabel">webOS</b>
+            <span>Perfil</span>
+          </button>
+        </div>
+        <div class="system-right">
+          <div class="weather">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+            <span>22°</span><span class="place">Despejado · Mérida</span>
+          </div>
+          <div class="clock">20:41</div>
+        </div>
+      </div>
+
+      <div class="theme-tray" id="themeTray" role="dialog" aria-label="Perfil visual">
+        <span class="tray-label">Perfil visual</span>
+        <button class="theme-choice active" data-theme-choice="webos"><i style="--sw:#37d9c5"></i>webOS</button>
+        <button class="theme-choice" data-theme-choice="firetv"><i style="--sw:#53b8ff"></i>Fire TV</button>
+        <button class="theme-choice" data-theme-choice="roku"><i style="--sw:#ffffff"></i>Roku</button>
+        <button class="theme-choice" data-theme-choice="tizen"><i style="--sw:#6b7bff"></i>Tizen</button>
+        <button class="theme-choice" data-theme-choice="androidtv"><i style="--sw:#8ab4f8"></i>Android TV</button>
+        <button class="theme-choice" data-theme-choice="googletv"><i style="--sw:#a8c7fa"></i>Google TV</button>
+        <button class="theme-choice" data-theme-choice="appletv"><i style="--sw:#ffc078"></i>Apple TV</button>
+        <button class="theme-choice" data-theme-choice="freemytv"><i style="--sw:#168cff"></i>Free My TV</button>
+      </div>
+
+      <div class="viewport">
+        <!-- HOME -->
+        <section class="view active" id="view-home" data-layout="webos">
+
+          <!-- webOS: hero de app + 5 shortcuts + carrusel + tarjetas -->
+          <div class="home-layout layout-webos">
+            <div class="home-head">
+              <div>
+                <h1>Buenas noches</h1>
+                <div class="date">Lunes 26 de octubre</div>
+              </div>
+            </div>
+
+            <div class="app-hero webos-hero" id="hero-webos"></div>
+            <div class="shortcut-row" id="webosShortcuts"></div>
+
+            <div class="app-chip-row" id="webosAppRow"></div>
+
+            <div class="row-head">
+              <h2>Tus apps</h2>
+              <button class="text-link">Editar accesos
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="m13 7 4 4"/></svg>
+              </button>
+            </div>
+            <div class="app-card-row" id="webosCards"></div>
+
+            <div class="hints">
+              <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd> mover</span><span class="hint"><kbd>OK</kbd> abrir</span><span class="hint"><kbd>↑</kbd> secciones</span></div>
+              <span>5 accesos configurados</span>
+            </div>
+          </div>
+
+          <!-- Fire TV / Tizen / Android TV / Google TV -->
+          <div class="home-layout layout-rows">
+            <div class="rows-head" id="rowsHead">
+              <div>
+                <h1 id="rowsTitle">Android TV</h1>
+                <div class="date" id="rowsSubtitle">9 apps instaladas</div>
+              </div>
+            </div>
+
+            <div class="app-hero rows-hero" id="hero-rows"></div>
+
+            <div class="tizen-tabs" id="tizenTabs">
+              <button class="tizen-tab active">Inicio</button>
+              <button class="tizen-tab">Apps</button>
+            </div>
+
+            <div class="rows-body">
+              <section class="rows-block apps-block">
+                <div class="row-head">
+                  <h2 id="rowsAppsTitle">Tus apps</h2>
+                  <button class="text-link" data-section="apps">Ver todas
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+                  </button>
+                </div>
+                <div class="app-chip-row" id="rowsAppRow"></div>
+              </section>
+
+              <section class="rows-block cards-block">
+                <div class="row-head">
+                  <h2 id="rowsCardsTitle">Aplicaciones</h2>
+                  <button class="text-link" data-section="apps">Ver todas
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+                  </button>
+                </div>
+                <div class="app-card-row" id="rowsCards"></div>
+                <div class="app-card-row fire-second-row" id="rowsCardsSecond"></div>
+              </section>
+            </div>
+
+            <div class="hints">
+              <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd> mover</span><span class="hint"><kbd>OK</kbd> abrir</span><span class="hint"><kbd>↑</kbd> secciones</span></div>
+              <span>9 apps instaladas</span>
+            </div>
+          </div>
+
+          <!-- Roku: título + grilla de 3 columnas -->
+          <div class="home-layout layout-roku">
+            <div class="roku-body">
+              <aside class="roku-aside">
+                <h1>Roku</h1>
+                <div class="roku-count">9 apps</div>
+                <div class="roku-clock">20:41</div>
+              </aside>
+              <div class="roku-grid" id="rokuGrid"></div>
+            </div>
+            <div class="hints">
+              <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> mover</span><span class="hint"><kbd>OK</kbd> abrir</span><span class="hint"><kbd>↑</kbd> secciones</span></div>
+              <span>9 canales</span>
+            </div>
+          </div>
+
+          <!-- Apple TV: panel de contexto + hero grande + tarjetas -->
+          <div class="home-layout layout-apple">
+            <div class="apple-body">
+              <aside class="apple-panel">
+                <div class="apple-mark">TV</div>
+                <div class="apple-clock">20:41</div>
+                <div class="apple-label">Ahora</div>
+                <div class="apple-list" id="appleNow"></div>
+                <div class="apple-note">Tus apps</div>
+                <button class="apple-customize">Personalizar</button>
+              </aside>
+              <div class="apple-main">
+                <div class="app-hero apple-hero" id="hero-apple"></div>
+                <div class="row-head">
+                  <h2>Tus apps</h2>
+                  <button class="text-link" data-section="apps">Ver todas
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg>
+                  </button>
+                </div>
+                <div class="app-card-row" id="appleCards"></div>
+              </div>
+            </div>
+            <div class="hints">
+              <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd> mover</span><span class="hint"><kbd>OK</kbd> abrir</span><span class="hint"><kbd>↑</kbd> secciones</span></div>
+              <span>Apple TV · 9 apps</span>
+            </div>
+          </div>
+
+          <!-- Free My TV: destacado + panel de favoritos -->
+          <div class="home-layout layout-freemytv">
+            <div class="fmtv-head">
+              <div class="fmtv-brand">
+                <div class="tvmark">TV</div>
+                <h1>Free My TV</h1>
+              </div>
+              <div class="fmtv-meta">
+                <button class="fmtv-customize">Personalizar</button>
+                <span>Lun 26 oct</span>
+                <span>20:41</span>
+              </div>
+            </div>
+
+            <div class="fmtv-featured" id="hero-freemytv"></div>
+
+            <div class="fmtv-favorites">
+              <div class="fmtv-fav-head">
+                <span>Aplicaciones favoritas</span>
+                <span>8 apps · acceso rápido</span>
+              </div>
+              <div class="fmtv-fav-row" id="fmtvFavorites"></div>
+            </div>
+
+            <div class="hints">
+              <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd> mover</span><span class="hint"><kbd>OK</kbd> abrir</span><span class="hint"><kbd>↑</kbd> secciones</span></div>
+              <span>8 favoritas</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SEARCH -->
+        <section class="view" id="view-search">
+          <div class="search-head">
+            <div>
+              <h1>Buscar</h1>
+              <div class="subtitle">Apps, juegos y accesos del dispositivo</div>
+            </div>
+          </div>
+
+          <div class="search-bar-row">
+            <div class="searchbar active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+              <span class="query">video</span><span class="caret"></span>
+              <span class="hint">Escribe o usa el teclado</span>
+            </div>
+            <button class="voice" title="Buscar por voz">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+            </button>
+            <div class="search-filters" aria-label="Filtrar búsqueda">
+              <button class="s-filter active">Todo</button>
+              <button class="s-filter">Apps</button>
+              <button class="s-filter">Sistema</button>
+            </div>
+          </div>
+
+          <div class="results-head">
+            <h2>Aplicaciones</h2>
+            <span>4 resultados · ordenados por relevancia</span>
+          </div>
+          <div class="results">
+            <article class="result focused">
+              <div class="icon" style="--c1:#1f8fff;--c2:#0b3a6b"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></div>
+              <div class="copy"><b>Prime Video</b><span>Películas y series</span></div>
+              <div class="open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg></div>
+            </article>
+            <article class="result">
+              <div class="icon" style="--c1:#ff8a00;--c2:#6b2d00"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></div>
+              <div class="copy"><b>VLC</b><span>Reproductor local</span></div>
+              <div class="open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg></div>
+            </article>
+            <article class="result">
+              <div class="icon" style="--c1:#37d9c5;--c2:#0b4a44"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg></div>
+              <div class="copy"><b>Reproductor</b><span>Video del dispositivo</span></div>
+              <div class="open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg></div>
+            </article>
+            <article class="result">
+              <div class="icon" style="--c1:#ff3b30;--c2:#a8071a"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg></div>
+              <div class="copy"><b>YouTube</b><span>Sugerencia</span></div>
+              <div class="open"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="m9 6 6 6-6 6"/></svg></div>
+            </article>
+          </div>
+
+          <div class="suggestions">
+            <span>También puedes buscar</span>
+            <button class="suggestion">Series</button>
+            <button class="suggestion">Películas</button>
+            <button class="suggestion">Juegos</button>
+            <button class="suggestion">Música</button>
+          </div>
+
+          <div class="keyboard">
+            <div class="keys-panel">
+              <div class="key-row">
+                <button class="key">Q</button><button class="key">W</button><button class="key">E</button><button class="key">R</button><button class="key">T</button><button class="key">Y</button><button class="key">U</button><button class="key">I</button><button class="key">O</button><button class="key">P</button>
+              </div>
+              <div class="key-row">
+                <button class="key">A</button><button class="key">S</button><button class="key">D</button><button class="key">F</button><button class="key">G</button><button class="key">H</button><button class="key">J</button><button class="key">K</button><button class="key">L</button><button class="key">Ñ</button>
+              </div>
+              <div class="key-row">
+                <button class="key">Z</button><button class="key">X</button><button class="key">C</button><button class="key focused">V</button><button class="key">B</button><button class="key">N</button><button class="key">M</button>
+                <button class="key wide-2" aria-label="Borrar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M21 6H9l-6 6 6 6h12z"/><path d="m12 10 4 4M16 10l-4 4"/></svg></button>
+              </div>
+              <div class="key-row">
+                <button class="key wide-2"><span class="key-label">123</span></button>
+                <button class="key wide"><span class="key-label">espacio</span></button>
+                <button class="key" aria-label="Voz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+                <button class="key wide-2"><span class="key-label">Ocultar</span></button>
+              </div>
+            </div>
+            <aside class="keyboard-aside">
+              <h3>Búsquedas recientes</h3>
+              <div class="recent">
+                <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Netflix</button>
+                <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>YouTube</button>
+                <button><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Plex</button>
+              </div>
+              <div class="aside-tip">Mantén <b>OK</b> en el micrófono para dictar. La búsqueda solo consulta apps instaladas.</div>
+            </aside>
+          </div>
+
+          <div class="hints">
+            <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> mover</span><span class="hint"><kbd>OK</kbd> seleccionar</span><span class="hint"><kbd>↩</kbd> volver</span></div>
+            <span>Resultados locales</span>
+          </div>
+        </section>
+
+        <!-- APPS -->
+        <section class="view" id="view-apps">
+          <div class="apps-head">
+            <div>
+              <h1>Apps</h1>
+              <div class="subtitle">128 instaladas · 12 usadas recientemente</div>
+            </div>
+          </div>
+
+          <div class="filters">
+            <button class="chip active">Todas</button>
+            <button class="chip">Favoritas</button>
+            <button class="chip">Sistema</button>
+            <button class="chip">Recientes</button>
+            <button class="sort">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M4 7h12M4 12h9M4 17h6M17 9l3-3 3 3M20 6v12"/></svg>
+              Orden: <strong>A–Z</strong>
+            </button>
+          </div>
+
+          <div class="apps-grid" id="appsGrid"></div>
+
+          <div class="hints">
+            <div class="hint-set"><span class="hint"><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> mover</span><span class="hint"><kbd>OK</kbd> abrir</span><span class="hint"><kbd>OK</kbd> mantenido opciones</span></div>
+            <span>Página 1 de 5</span>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">Ajustes se mantiene como panel existente en esta fase.</div>
+  </main>
+</div>
+
+<div class="helper">
+  <span><b>Prototipo</b> · cambia de sección sin salir de la vista</span>
+  <span class="sep"></span>
+  <span><kbd>1</kbd> Inicio · <kbd>2</kbd> Buscar · <kbd>3</kbd> Apps · <kbd>T</kbd> perfil · <kbd>←</kbd><kbd>→</kbd></span>
+</div>
+
+<script>
+  const ICONS = {
+    play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
+    film: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M17 9h4M3 15h4M17 15h4"/></svg>',
+    music: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
+    game: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M7 8h10a4 4 0 0 1 4 4v5a2 2 0 0 1-3.2 1.6L15 17H9l-2.8 1.6A2 2 0 0 1 3 17v-5a4 4 0 0 1 4-4Z"/><path d="M8 12h4M10 10v4"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/></svg>',
+    photo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="1.6"/><path d="m21 15-5-5L5 20"/></svg>',
+    globe: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14 0 18M12 3c-3 3.5-3 14 0 18"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>',
+    gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21h-4v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3v-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V3h4v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.1v4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>',
+    store: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 8h12l1 12H5L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+    tv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/></svg>',
+    cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1 0-8 6 6 0 0 1 11.5 1.5A3.5 3.5 0 0 1 18 18H7Z"/></svg>',
+    star: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>',
+    book: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h6v16H6a2 2 0 0 0-2 2V5Z"/><path d="M20 5a2 2 0 0 0-2-2h-6v16h6a2 2 0 0 1 2 2V5Z"/></svg>',
+    cast: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 6h16v10h-5"/><path d="M4 14a6 6 0 0 1 6 6M4 18a2 2 0 0 1 2 2"/></svg>'
+  };
+
+  const APPS = [
+    ["YouTube","play","#ff453a","#8f0d12"],
+    ["Netflix","film","#ef233c","#4d070b"],
+    ["Prime Video","play","#2f9bff","#0a3566"],
+    ["Disney+","star","#5b7cff","#172763"],
+    ["Spotify","music","#1ed760","#07542a"],
+    ["Plex","play","#ffb340","#6e3a00"],
+    ["Twitch","game","#9a5cff","#37146b"],
+    ["Steam","game","#63b3ed","#12314a"],
+    ["GeForce Now","cloud","#7cc242","#294700"],
+    ["YouTube Music","music","#ff5757","#6e0d0d"],
+    ["VLC","play","#ff922b","#633000"],
+    ["Kodi","cast","#2ed3d3","#074445"],
+    ["Ajustes TV","gear","#9aa3b5","#333a47"],
+    ["Archivos","folder","#f2b84b","#603f08"],
+    ["Fotos","photo","#ff76bb","#61133d"],
+    ["Chrome","globe","#5aa9ff","#0a3a63"],
+    ["Google TV","tv","#6c97ff","#182b63"],
+    ["Apple TV","tv","#d3d8e0","#41464f"],
+    ["Música","music","#ff5c95","#610d31"],
+    ["Juegos","game","#a77cff","#34155f"],
+    ["Play Store","store","#45df8b","#07512f"],
+    ["HBO Max","play","#b083ff","#35145f"],
+    ["Star+","star","#ffa94d","#613400"],
+    ["Crunchyroll","play","#ff842e","#622800"],
+    ["Deezer","music","#b083ff","#35145f"],
+    ["TED","book","#ff5c5c","#610b0b"],
+    ["Canales","tv","#43e3cf","#07443e"],
+    ["Pluto TV","play","#ff6fb5","#5e1745"],
+    ["Tubi","play","#ff9f43","#5e3100"],
+    ["Rakuten TV","play","#ff4d5e","#5e0b16"],
+    ["Filmin","film","#2ed3d3","#064344"],
+    ["Mubi","film","#f2c94c","#5e4a05"],
+    ["Xbox","game","#5ee06b","#0b4a1a"],
+    ["Luna","cloud","#5aa9ff","#0a355e"],
+    ["Emby","cast","#6ee7b7","#07553d"],
+    ["Jellyfin","cast","#7c9bff","#182b63"]
+  ];
+
+  const THEMES = [
+    { key:"webos", label:"webOS", layout:"webos", heroApp:0 },
+    { key:"firetv", label:"Fire TV", layout:"rows", heroApp:2, rowsTitle:"", rowsSubtitle:"" },
+    { key:"roku", label:"Roku", layout:"roku" },
+    { key:"tizen", label:"Tizen", layout:"rows", heroApp:1, rowsTitle:"", rowsSubtitle:"" },
+    { key:"androidtv", label:"Android TV", layout:"rows", heroApp:0, rowsTitle:"Android TV", rowsSubtitle:"9 apps instaladas" },
+    { key:"googletv", label:"Google TV", layout:"rows", heroApp:3, rowsTitle:"Google TV", rowsSubtitle:"9 apps instaladas" },
+    { key:"appletv", label:"Apple TV", layout:"apple", heroApp:17 },
+    { key:"freemytv", label:"Free My TV", layout:"freemytv", heroApp:0 }
+  ];
+
+  function iconEl(app, sizeClass){
+    const [name, icon, c1, c2] = app;
+    return `<div class="icon ${sizeClass || ''}" style="--c1:${c1};--c2:${c2}">${ICONS[icon] || ICONS.tv}</div>`;
+  }
+
+  function appChip(app, focused){
+    return `<button class="app-chip ${focused ? 'focused' : ''}" title="${app[0]}">${iconEl(app)}<span class="name">${app[0]}</span></button>`;
+  }
+
+  function appCard(app, focused){
+    return `<button class="app-card ${focused ? 'focused' : ''}" title="${app[0]}">${iconEl(app)}<span class="name">${app[0]}</span></button>`;
+  }
+
+  function rokuCard(app, focused){
+    return `<button class="roku-card ${focused ? 'focused' : ''}" title="${app[0]}">${iconEl(app)}<span class="name">${app[0]}</span></button>`;
+  }
+
+  function favoriteCard(app, focused){
+    return `<button class="fmtv-fav ${focused ? 'focused' : ''}" title="${app[0]}">${iconEl(app)}<span class="name">${app[0]}</span></button>`;
+  }
+
+  function renderHero(containerId, appIndex, eyebrow){
+    const host = document.getElementById(containerId);
+    const app = APPS[appIndex];
+    if(!host || !app) return;
+    host.innerHTML = `
+      <div class="hero-copy">
+        <span class="eyebrow">${eyebrow}</span>
+        <h2>${app[0]}</h2>
+        <p>Abre ${app[0]} desde tus aplicaciones instaladas.</p>
+        <div class="hero-actions">
+          <button class="btn btn-primary">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+            Abrir
+          </button>
+          <button class="btn btn-ghost" data-section="apps">Ver apps</button>
+        </div>
+      </div>
+      <div class="hero-app-icon">${iconEl(app)}</div>`;
+  }
+
+  function renderFreeHero(appIndex){
+    const host = document.getElementById('hero-freemytv');
+    const app = APPS[appIndex];
+    if(!host || !app) return;
+    host.innerHTML = `
+      <span class="eyebrow">Películas y series</span>
+      <h2>${app[0]}</h2>
+      <p>Abre ${app[0]} desde tus aplicaciones instaladas.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>
+          Abrir
+        </button>
+        <button class="btn btn-ghost" data-section="apps">Ver apps</button>
+      </div>
+      <div class="fmtv-featured-icon">${iconEl(app)}</div>`;
+  }
+
+  function buildAppsGrid(){
+    const grid = document.getElementById('appsGrid');
+    grid.innerHTML = APPS.map((app, i) =>
+      `<button class="app-tile ${i===5?'focused':''}" title="${app[0]}">${iconEl(app)}<span class="name">${app[0]}</span></button>`
+    ).join('');
+  }
+
+  function renderHome(){
+    renderHero('hero-webos', 0, 'Aplicación instalada');
+    renderHero('hero-apple', 17, 'Aplicación destacada');
+    renderFreeHero(0);
+
+    document.getElementById('webosShortcuts').innerHTML = APPS.slice(0, 5).map((app, i) =>
+      `<button class="shortcut ${i===0?'focused':''}" title="${app[0]}">${app[0]}</button>`
+    ).join('');
+    document.getElementById('webosAppRow').innerHTML = APPS.slice(0, 7).map((app) => appChip(app, false)).join('');
+    document.getElementById('webosCards').innerHTML = APPS.slice(0, 5).map((app) => appCard(app, false)).join('');
+
+    document.getElementById('rowsAppRow').innerHTML = APPS.slice(0, 7).map((app, i) => appChip(app, i===0)).join('');
+    document.getElementById('rowsCards').innerHTML = APPS.slice(0, 5).map((app) => appCard(app, false)).join('');
+    document.getElementById('rowsCardsSecond').innerHTML = APPS.slice(5, 10).map((app) => appCard(app, false)).join('');
+
+    document.getElementById('rokuGrid').innerHTML = APPS.slice(0, 9).map((app, i) => rokuCard(app, i===0)).join('');
+    document.getElementById('appleCards').innerHTML = APPS.slice(0, 5).map((app, i) => appCard(app, i===0)).join('');
+    document.getElementById('appleNow').innerHTML = APPS.slice(0, 3).map((app) => `<span>${app[0]}</span>`).join('');
+    document.getElementById('fmtvFavorites').innerHTML = APPS.slice(0, 8).map((app, i) => favoriteCard(app, i===0)).join('');
+  }
+
+  buildAppsGrid();
+  renderHome();
+
+  const themeButton = document.getElementById('themeButton');
+  const themeTray = document.getElementById('themeTray');
+  const themeLabel = document.getElementById('themeLabel');
+  const tvElement = document.querySelector('.tv');
+  let activeTheme = 'webos';
+
+  function applyTheme(key){
+    const theme = THEMES.find(item => item.key === key) || THEMES[0];
+    activeTheme = theme.key;
+    tvElement.dataset.theme = theme.key;
+    themeLabel.textContent = theme.label;
+    renderNativeNavigation(theme);
+
+    document.querySelectorAll('.theme-choice').forEach(button => {
+      button.classList.toggle('active', button.dataset.themeChoice === theme.key);
+    });
+
+    document.getElementById('view-home').dataset.layout = theme.layout;
+    if(theme.layout === 'rows'){
+      renderHero('hero-rows', theme.heroApp, 'Aplicación instalada');
+      document.getElementById('rowsTitle').textContent = theme.rowsTitle || '';
+      document.getElementById('rowsSubtitle').textContent = theme.rowsSubtitle || '';
+      document.getElementById('rowsAppsTitle').textContent = theme.key === 'firetv' ? 'Apps' : 'Tus apps';
+      document.getElementById('rowsCardsTitle').textContent = theme.key === 'firetv' ? 'Tus apps' : 'Aplicaciones';
+    }
+  }
+
+  themeButton.addEventListener('click', event => {
+    event.stopPropagation();
+    const open = themeTray.classList.toggle('open');
+    themeButton.setAttribute('aria-expanded', String(open));
+  });
+  themeTray.addEventListener('click', event => event.stopPropagation());
+  document.querySelectorAll('.theme-choice').forEach(button => {
+    button.addEventListener('click', () => {
+      applyTheme(button.dataset.themeChoice);
+      themeTray.classList.remove('open');
+      themeButton.setAttribute('aria-expanded', 'false');
+    });
+  });
+  document.addEventListener('click', () => {
+    themeTray.classList.remove('open');
+    themeButton.setAttribute('aria-expanded', 'false');
+  });
+
+  const navItems = [...document.querySelectorAll('.nav-item[data-section]')];
+  const views = [...document.querySelectorAll('.view')];
+  const indicator = document.getElementById('navIndicator');
+  const order = ['home','search','apps'];
+  let current = 'home';
+  let currentView = document.getElementById('view-home');
+
+  function renderNativeNavigation(theme){
+    let navigation = document.getElementById('nativeNavigation');
+    if(!navigation){
+      navigation = document.createElement('nav');
+      navigation.id = 'nativeNavigation';
+      navigation.className = 'native-navigation';
+      navigation.setAttribute('aria-label', 'Navegación del tema');
+      tvElement.appendChild(navigation);
+    }
+    const context = theme.key === 'roku' ? '<div class="native-title">Roku</div>' :
+      theme.key === 'appletv' ? '<div class="native-title">TV</div><div class="native-context">20:41</div>' : '';
+    navigation.innerHTML = context + [['home','Inicio'],['search','Buscar'],['apps','Apps']].map(([section,label]) =>
+      `<button data-section="${section}" class="${section === current ? 'active' : ''}">${label}</button>`
+    ).join('') + '<button data-native-settings>Ajustes</button>' +
+      (theme.key === 'appletv' ? '<div class="native-context">Tus apps<br><br>YouTube<br><br>Netflix<br><br>Prime Video</div>' : '');
+  }
+
+  function setSection(name, pushHash=true){
+    if(!order.includes(name)) return;
+    if(name === current && currentView) return;
+    const nextIndex = order.indexOf(name);
+    navItems.forEach(item => {
+      const on = item.dataset.section === name;
+      item.classList.toggle('active', on);
+      if(on) item.setAttribute('aria-current','page'); else item.removeAttribute('aria-current');
+    });
+    indicator.style.transform = `translateY(${nextIndex * 84}px)`;
+
+    const outgoing = currentView;
+    if(outgoing){
+      outgoing.classList.remove('active');
+      outgoing.classList.add('leaving');
+      setTimeout(() => outgoing.classList.remove('leaving'), 280);
+    }
+    const incoming = document.getElementById('view-' + name);
+    // restart the entrance animation reliably
+    incoming.classList.remove('active');
+    void incoming.offsetWidth;
+    incoming.classList.add('active');
+    currentView = incoming;
+    current = name;
+    tvElement.dataset.section = name;
+    renderNativeNavigation(THEMES.find(theme => theme.key === activeTheme));
+    if(pushHash) { try { history.replaceState(null, '', '#' + name); } catch(_) {} }
+  }
+
+  navItems.forEach(item => item.addEventListener('click', () => setSection(item.dataset.section)));
+  document.addEventListener('click', event => {
+    const target = event.target.closest('[data-section]');
+    if(target && !target.classList.contains('nav-item')) setSection(target.dataset.section);
+  });
+
+  document.getElementById('settingsButton').addEventListener('click', () => {
+    const toast = document.getElementById('toast');
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if(e.key === '1') setSection('home');
+    if(e.key === '2') setSection('search');
+    if(e.key === '3') setSection('apps');
+    if(e.key === 't' || e.key === 'T'){
+      const index = THEMES.findIndex(item => item.key === activeTheme);
+      applyTheme(THEMES[(index + 1) % THEMES.length].key);
+    }
+    if(e.key === 'Escape'){
+      if(themeTray.classList.contains('open')){
+        themeTray.classList.remove('open');
+        themeButton.setAttribute('aria-expanded', 'false');
+      } else {
+        setSection('home');
+      }
+    }
+    if(e.key === 'ArrowRight' || e.key === 'ArrowDown'){ e.preventDefault(); setSection(order[(order.indexOf(current)+1)%order.length]); }
+    if(e.key === 'ArrowLeft' || e.key === 'ArrowUp'){ e.preventDefault(); setSection(order[(order.indexOf(current)+order.length-1)%order.length]); }
+  });
+
+  const params = new URLSearchParams(location.search);
+  const capture = params.has('capture');
+  if(capture) document.body.classList.add('capture');
+  function fit(){
+    if(capture) { document.getElementById('fit').style.transform = 'none'; return; }
+    const s = Math.min(innerWidth/1920, innerHeight/1080);
+    document.getElementById('fit').style.transform = `translate(-50%,-50%) scale(${s})`;
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  const initialTheme = params.get('theme');
+  applyTheme(THEMES.some(item => item.key === initialTheme) ? initialTheme : 'webos');
+
+  if(params.has('tray')){
+    themeTray.classList.add('open');
+    themeButton.setAttribute('aria-expanded', 'true');
+  }
+
+  const initial = location.hash ? location.hash.slice(1) : 'home';
+  setSection(order.includes(initial) ? initial : 'home', false);
+</script>
+</body>
+</html>

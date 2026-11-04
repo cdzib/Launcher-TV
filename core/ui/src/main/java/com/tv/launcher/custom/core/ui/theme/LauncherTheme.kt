@@ -7,6 +7,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.MaterialTheme
@@ -31,7 +32,9 @@ data class LauncherStyle(
     val tileRadius: Dp,
     val focusScale: Float,
     val layout: LayoutKind,
-    @StringRes val nameRes: Int
+    @StringRes val nameRes: Int,
+    val glassSurfaces: Boolean = false,
+    val declarativeSurfaces: Boolean = false
 )
 
 private val Light = Color(0xFFF2F4F7)
@@ -106,6 +109,12 @@ val LocalLauncherStyle = staticCompositionLocalOf<LauncherStyle> {
 }
 
 val LocalBackgroundImageVisible = staticCompositionLocalOf { false }
+
+/** Host-owned wallpaper already drawn behind the canvas; keeps glass surfaces on the real image. */
+val LocalBackgroundImage = staticCompositionLocalOf<ImageBitmap?> { null }
+
+/** Global motion switch persisted with the appearance; false keeps all content static. */
+val LocalAnimationsEnabled = staticCompositionLocalOf { true }
 
 @Composable
 fun LauncherTheme(themeId: ThemeId, content: @Composable () -> Unit) {

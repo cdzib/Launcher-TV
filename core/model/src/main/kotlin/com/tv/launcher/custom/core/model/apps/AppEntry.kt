@@ -1,3 +1,7 @@
 package com.tv.launcher.custom.core.model.apps
 
-data class AppEntry(val packageName: String, val label: String)
+data class AppEntry(
+    val packageName: String,
+    val label: String,
+    val isSystemApp: Boolean = false
+)

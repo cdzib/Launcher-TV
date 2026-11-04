@@ -16,11 +16,17 @@ class InstalledAppsCanvasData(
     private val assetUris: Map<String, String> = emptyMap(),
     private val onOpenSystemSettings: () -> Unit = {},
     private val onOpenPersonalization: () -> Unit = onOpenSettings,
-    private val onOpenSearch: () -> Unit = onOpenApps
+    private val onOpenSearch: () -> Unit = onOpenApps,
+    private val onOpenHome: () -> Unit = {},
+    private val recents: List<AppEntry> = emptyList(),
+    private val onOpenProfile: () -> Unit = onOpenPersonalization,
+    private val onOpenNotifications: () -> Unit = onOpenSystemSettings,
+    private val onOpenAppsFiltered: (AppsFilter) -> Unit = { onOpenApps() }
 ) : CanvasData {
+    override fun installedApps() = apps
     private fun appsFor(block: ThemeBlock): List<AppEntry> = when (block.type) {
         ThemeBlockType.FAVORITES_ROW -> favorites
-        ThemeBlockType.RECENTS_ROW -> emptyList()
+        ThemeBlockType.RECENTS_ROW -> recents
         ThemeBlockType.MEDIA_ROW -> emptyList()
         else -> apps
     }
@@ -62,13 +68,19 @@ class InstalledAppsCanvasData(
         }
     }
     override fun onNavClick(label: String) {
+        val appsFilter = resolveAppsFilter(label)
         when {
             isPersonalizationLabel(label) -> onOpenPersonalization()
+            isProfileLabel(label) -> onOpenProfile()
+            isNotificationsLabel(label) -> onOpenNotifications()
             label.contains("ajust", true) || label.contains("config", true) || label.contains("setting", true) -> onOpenSystemSettings()
-            label.contains("apps", true) || label.contains("aplic", true) -> onOpenApps()
-            label.contains("busc", true) || label.contains("search", true) -> onOpenSearch()
-            label.contains("inicio", true) || label.contains("home", true) -> Unit
-            else -> onUnavailableNavigation(label)
+            appsFilter != null -> onOpenAppsFiltered(appsFilter)
+            else -> when (resolveLauncherSection(label)) {
+                LauncherSection.APPS -> onOpenApps()
+                LauncherSection.SEARCH -> onOpenSearch()
+                LauncherSection.HOME -> onOpenHome()
+                null -> onUnavailableNavigation(label)
+            }
         }
     }
     override fun onSystemSettingsClick() = onOpenSystemSettings()
@@ -80,11 +92,16 @@ class InstalledAppsCanvasData(
         onLaunch = onLaunch,
         onOpenApps = onOpenApps,
         onOpenSettings = onOpenSettings,
+        onOpenAppsFiltered = onOpenAppsFiltered,
         onUnavailableNavigation = onUnavailableNavigation,
         assetUris = assetUris,
         onOpenSystemSettings = onOpenSystemSettings,
         onOpenPersonalization = onOpenPersonalization,
-        onOpenSearch = onOpenSearch
+        onOpenSearch = onOpenSearch,
+        onOpenHome = onOpenHome,
+        recents = recents,
+        onOpenProfile = onOpenProfile,
+        onOpenNotifications = onOpenNotifications
     )
 
     private fun mediaItemsFor(block: ThemeBlock) = block.contentItems

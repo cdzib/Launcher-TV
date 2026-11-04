@@ -2,6 +2,7 @@ package com.tv.launcher.custom.core.data.theme
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.MutablePreferences
@@ -22,6 +23,9 @@ private val BackgroundImageUriKey = stringPreferencesKey("appearance_background_
 private val BackgroundColorKey = stringPreferencesKey("appearance_background_color_argb")
 private val AccentColorKey = stringPreferencesKey("appearance_accent_color_argb")
 private val InstalledThemeIdKey = stringPreferencesKey("appearance_installed_theme_id")
+private val RecentPackagesKey = stringPreferencesKey("appearance_recent_packages")
+private val FavoritePackagesKey = stringPreferencesKey("appearance_favorite_packages")
+private val AnimationsEnabledKey = booleanPreferencesKey("appearance_animations_enabled")
 
 @Singleton
 class DataStoreThemeRepository @Inject constructor(
@@ -54,6 +58,10 @@ internal fun MutablePreferences.setLauncherAppearance(appearance: LauncherAppear
     appearance.backgroundColorArgb?.let { this[BackgroundColorKey] = it.toString() } ?: remove(BackgroundColorKey)
     appearance.accentColorArgb?.let { this[AccentColorKey] = it.toString() } ?: remove(AccentColorKey)
     appearance.installedThemeId?.let { this[InstalledThemeIdKey] = it } ?: remove(InstalledThemeIdKey)
+    if (appearance.recentPackages.isEmpty()) remove(RecentPackagesKey)
+    else this[RecentPackagesKey] = appearance.recentPackages.joinToString("|")
+    this[FavoritePackagesKey] = appearance.favoritePackages.joinToString("|")
+    this[AnimationsEnabledKey] = appearance.animationsEnabled
     for (slot in 0..4) {
         val key = stringPreferencesKey("shortcut_$slot")
         val packageName = appearance.shortcuts[slot]
@@ -61,17 +69,27 @@ internal fun MutablePreferences.setLauncherAppearance(appearance: LauncherAppear
     }
 }
 
-internal fun Preferences.toLauncherAppearance() = LauncherAppearance(
-    themeId = enumPreference(ThemeKey, ThemeId.WEBOS),
-    accent = enumPreference(AccentKey, AccentChoice.PROFILE),
-    background = enumPreference(BackgroundKey, BackgroundChoice.PROFILE),
-    tileShape = enumPreference(TileShapeKey, TileShapeChoice.PROFILE),
-    shortcuts = (0..4).mapNotNull { slot -> this[stringPreferencesKey("shortcut_$slot")]?.let { slot to it } }.toMap(),
-    backgroundImageUri = this[BackgroundImageUriKey],
-    backgroundColorArgb = this[BackgroundColorKey]?.toLongOrNull(),
-    accentColorArgb = this[AccentColorKey]?.toLongOrNull(),
-    installedThemeId = this[InstalledThemeIdKey]
-)
+internal fun Preferences.toLauncherAppearance(): LauncherAppearance {
+    val shortcuts = (0..4).mapNotNull { slot ->
+        this[stringPreferencesKey("shortcut_$slot")]?.let { slot to it }
+    }.toMap()
+    return LauncherAppearance(
+        themeId = enumPreference(ThemeKey, ThemeId.WEBOS),
+        accent = enumPreference(AccentKey, AccentChoice.PROFILE),
+        background = enumPreference(BackgroundKey, BackgroundChoice.PROFILE),
+        tileShape = enumPreference(TileShapeKey, TileShapeChoice.PROFILE),
+        shortcuts = shortcuts,
+        backgroundImageUri = this[BackgroundImageUriKey],
+        backgroundColorArgb = this[BackgroundColorKey]?.toLongOrNull(),
+        accentColorArgb = this[AccentColorKey]?.toLongOrNull(),
+        installedThemeId = this[InstalledThemeIdKey],
+        recentPackages = this[RecentPackagesKey]?.split("|")?.filter { it.isNotBlank() }.orEmpty(),
+        // Legacy installs used the five webOS shortcuts as favorites.
+        favoritePackages = this[FavoritePackagesKey]?.split("|")?.filter { it.isNotBlank() }
+            ?: shortcuts.values.toList(),
+        animationsEnabled = this[AnimationsEnabledKey] ?: true
+    )
+}
 
 private inline fun <reified T : Enum<T>> Preferences.enumPreference(
     key: androidx.datastore.preferences.core.Preferences.Key<String>,

@@ -4,12 +4,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.focus.FocusRequester
 import com.tv.launcher.custom.core.model.theme.ThemeBlockType
 import com.tv.launcher.custom.core.model.theme.ThemeComposition
-import com.tv.launcher.custom.core.theme.layout.*
-import com.tv.launcher.custom.core.theme.layout.FreeMyTvLayout
+import com.tv.launcher.custom.core.theme.layout.CustomThemeLayout
+import com.tv.launcher.custom.core.ui.components.AppsFilter
 import com.tv.launcher.custom.core.ui.components.InstalledAppsCanvasData
 import com.tv.launcher.custom.core.ui.components.LocalOpenApps
-import com.tv.launcher.custom.core.ui.theme.LayoutKind
-import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
 import com.tv.launcher.custom.feature.home.presentation.state.HomeIntent
 import com.tv.launcher.custom.feature.home.presentation.state.HomeUiState
 
@@ -24,25 +22,41 @@ fun HomeContent(
     customThemeName: String = "",
     customThemeAssets: Map<String, String> = emptyMap(),
     onOpenPersonalization: () -> Unit = onOpenSettings,
-    onOpenSearch: () -> Unit = {}
+    onOpenSearch: () -> Unit = {},
+    onOpenAppsFiltered: (AppsFilter) -> Unit,
+    onOpenProfile: () -> Unit = onOpenPersonalization,
+    onOpenNotifications: () -> Unit = onOpenSettings
 ) {
-    val layout = LocalLauncherStyle.current.layout
     val firstItemFocus = remember { FocusRequester() }
     val onLaunch = { packageName: String -> onIntent(HomeIntent.Launch(packageName)) }
     val onOpenApps = LocalOpenApps.current
-    val installedCanvasData = remember(state.apps, state.appearance.shortcuts, onIntent, onOpenSettings, onOpenApps, onUnavailableNavigation, onOpenPersonalization, onOpenSearch) {
-        val favoritePackages = state.appearance.shortcuts.values.toSet()
-        InstalledAppsCanvasData(state.apps, state.apps.filter { it.packageName in favoritePackages },
+    val onOpenHome = com.tv.launcher.custom.core.ui.components.LocalOpenHome.current
+    val section = com.tv.launcher.custom.core.ui.components.LocalLauncherSection.current
+    val installedCanvasData = remember(state.apps, state.appearance.shortcuts, state.appearance.recentPackages, state.appearance.favoritePackages, onIntent, onOpenSettings, onOpenApps, onUnavailableNavigation, onOpenPersonalization, onOpenSearch, onOpenHome) {
+        val favorites = state.appearance.favoritePackages.mapNotNull { packageName ->
+            state.apps.firstOrNull { it.packageName == packageName }
+        }
+        val recents = state.appearance.recentPackages.mapNotNull { packageName ->
+            state.apps.firstOrNull { it.packageName == packageName }
+        }
+        InstalledAppsCanvasData(state.apps, favorites,
             onLaunch, onOpenApps, onOpenSettings, onUnavailableNavigation,
             onOpenPersonalization = onOpenPersonalization,
             onOpenSearch = onOpenSearch,
-            onOpenSystemSettings = onOpenSettings)
+            onOpenHome = onOpenHome,
+            onOpenSystemSettings = onOpenSettings,
+            recents = recents,
+            onOpenAppsFiltered = onOpenAppsFiltered,
+            onOpenProfile = onOpenProfile,
+            onOpenNotifications = onOpenNotifications)
     }
-    LaunchedEffect(layout, customComposition, state.apps) {
+    LaunchedEffect(customComposition, state.apps) {
+        if (section != com.tv.launcher.custom.core.ui.components.LauncherSection.HOME) return@LaunchedEffect
         val hasFocusableApps = customComposition?.blocks?.any { block ->
             when (block.type) {
                 ThemeBlockType.APPS_ROW, ThemeBlockType.APPS_GRID -> state.apps.isNotEmpty()
                 ThemeBlockType.FAVORITES_ROW -> state.apps.any { it.packageName in state.appearance.shortcuts.values }
+                ThemeBlockType.RECENTS_ROW -> state.appearance.recentPackages.isNotEmpty()
                 ThemeBlockType.MEDIA_ROW -> block.contentItems.any { item -> item.launchPackage in state.apps.map { it.packageName }.toSet() }
                 else -> false
             }
@@ -56,21 +70,9 @@ fun HomeContent(
         )
         return
     }
-    when (layout) {
-        LayoutKind.BOTTOM_FLOATING -> WebOsLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.BOTTOM_EXPANDING -> BottomBarLayout(state.apps, true, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.TOP_NAV -> TopNavLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.SIDE_GRID -> SideGridLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.ANDROID_GRID -> AndroidTvLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.GOOGLE_HOME -> GoogleTvLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.APPLE_HOME -> AppleTvLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.TIZEN_HOME -> TizenLayout(state.apps, firstItemFocus, onLaunch, onOpenSettings, onOpenPersonalization = onOpenPersonalization)
-        LayoutKind.FREE_MY_TV -> {
-            val favoriteApps = remember(state.apps, state.appearance.shortcuts) {
-                resolveFreeMyTvFavoriteApps(state.apps, state.appearance.shortcuts)
-            }
-            val featuredApp = remember(state.apps) { resolveFreeMyTvFeaturedApp(state.apps) }
-            FreeMyTvLayout(favoriteApps, featuredApp, firstItemFocus, onLaunch, onOpenPersonalization)
-        }
-    }
+    CustomThemeLayout(
+        state.themeId.name,
+        com.tv.launcher.custom.core.theme.defaultCompositionFor(state.themeId),
+        installedCanvasData, firstItemFocus, onOpenSettings, onOpenPersonalization
+    )
 }

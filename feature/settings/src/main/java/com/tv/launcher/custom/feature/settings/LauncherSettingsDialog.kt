@@ -1,5 +1,7 @@
 package com.tv.launcher.custom.feature.settings
 
+import android.annotation.SuppressLint
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -53,9 +55,13 @@ import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
 private enum class SettingsCategory(@StringRes val title: Int, val icon: ImageVector) {
+    HOME(R.string.launcher_home, Icons.Default.Home),
     THEMES(R.string.theme_picker_title, Icons.Default.GridView),
+    FAVORITES(R.string.settings_favorites, Icons.Default.Star),
     BACKGROUND(R.string.appearance_background, Icons.Default.Wallpaper),
-    APPEARANCE(R.string.settings_appearance, Icons.Default.Tune)
+    APPEARANCE(R.string.settings_appearance, Icons.Default.Tune),
+    WEATHER(R.string.weather_settings_title, Icons.Default.Cloud),
+    DEVICE_TOOLS(R.string.device_tools_title, Icons.Default.Build)
 }
 
 @Composable
@@ -73,7 +79,12 @@ fun LauncherSettingsDialog(
     onApplyInstalledTheme: (String) -> Unit = {},
     onDeleteInstalledTheme: (String) -> Unit = {},
     apps: ImmutableList<AppEntry> = persistentListOf(),
-    previewData: CanvasData = PlaceholderCanvasData
+    previewData: CanvasData = PlaceholderCanvasData,
+    onOpenDeviceTools: () -> Unit = {},
+    onOpenWeatherSettings: () -> Unit = {},
+    onToggleFavorite: (String) -> Unit = {},
+    weatherContent: (@Composable () -> Unit)? = null,
+    deviceToolsContent: (@Composable () -> Unit)? = null
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -82,11 +93,15 @@ fun LauncherSettingsDialog(
         LauncherSettingsContent(
             appearance, onIntent, onDismiss, onChooseBackgroundImage, onImportTheme,
             onExportTheme, onOpenOnlineThemes, onCreateCustomTheme, installedThemes,
-            onEditInstalledTheme, onApplyInstalledTheme, onDeleteInstalledTheme, apps, previewData
+            onEditInstalledTheme, onApplyInstalledTheme, onDeleteInstalledTheme, apps, previewData,
+            onOpenDeviceTools, onOpenWeatherSettings,
+            onToggleFavorite = onToggleFavorite,
+            weatherContent = weatherContent, deviceToolsContent = deviceToolsContent
         )
     }
 }
 
+@SuppressLint("UnusedBoxWithConstraintsScope")
 @Composable
 private fun LauncherSettingsContent(
     appearance: LauncherAppearance,
@@ -103,9 +118,16 @@ private fun LauncherSettingsContent(
     onDeleteInstalledTheme: (String) -> Unit,
     apps: ImmutableList<AppEntry>,
     previewData: CanvasData,
-    initialCategory: SettingsCategory = SettingsCategory.THEMES
+    onOpenDeviceTools: () -> Unit,
+    onOpenWeatherSettings: () -> Unit,
+    onToggleFavorite: (String) -> Unit = {},
+    initialCategory: SettingsCategory = SettingsCategory.HOME,
+    weatherContent: (@Composable () -> Unit)? = null,
+    deviceToolsContent: (@Composable () -> Unit)? = null
 ) {
     var category by remember { mutableStateOf(initialCategory) }
+    val isThemeLibraryVisible = category == SettingsCategory.THEMES
+    BackHandler(enabled = isThemeLibraryVisible) { category = SettingsCategory.HOME }
     var selectedThemeId by remember(appearance.installedThemeId) { mutableStateOf(appearance.installedThemeId) }
     val activeTheme = installedThemes.firstOrNull { it.id == appearance.installedThemeId }
     val activeName = activeTheme?.name ?: stringResource(appearance.themeId.toStyle().nameRes)
@@ -118,8 +140,14 @@ private fun LauncherSettingsContent(
     val initialFocus = remember { FocusRequester() }
     val categoryState = rememberSaveableStateHolder()
     val contentFocus = remember { FocusRequester() }
+    val themeFocusRequesters = remember(installedThemes.map { it.id }) {
+        installedThemes.associate { it.id to FocusRequester() }
+    }
     val categoryFocus = remember { SettingsCategory.entries.associateWith { FocusRequester() } }
     val isInspection = LocalInspectionMode.current
+    LaunchedEffect(isThemeLibraryVisible) {
+        if (!isInspection && category == SettingsCategory.THEMES) contentFocus.requestFocus()
+    }
     val safePreviewData = remember(previewData) {
         object : CanvasData by previewData {
             override fun onItemClick(block: ThemeBlock, index: Int) = Unit
@@ -138,9 +166,14 @@ private fun LauncherSettingsContent(
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.settings_personalization), color = SettingsColors.text,
                         fontSize = if (compact) 24.sp else 28.sp, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(R.string.settings_subtitle), color = SettingsColors.muted, fontSize = 14.sp)
+                    Text(stringResource(R.string.settings_active_theme_name, activeName), color = SettingsColors.muted, fontSize = 14.sp)
                 }
-                SettingsButton(stringResource(R.string.close), icon = Icons.Default.Close, onClick = onDismiss)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    SettingsButton(stringResource(R.string.import_theme_package), icon = Icons.Default.FileDownload,
+                        onClick = onImportTheme)
+                    SettingsButton(stringResource(R.string.settings_explore_themes), icon = Icons.Default.Language,
+                        onClick = onOpenOnlineThemes)
+                }
             }
             Spacer(Modifier.height(16.dp))
             Box(Modifier.fillMaxWidth().height(1.dp).background(SettingsColors.divider))
@@ -152,12 +185,21 @@ private fun LauncherSettingsContent(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SettingsCategory.entries.forEachIndexed { index, item ->
+                        if (item == SettingsCategory.DEVICE_TOOLS) {
+                            Text(stringResource(R.string.settings_advanced), color = SettingsColors.muted,
+                                fontSize = 12.sp, modifier = Modifier.padding(top = 16.dp, start = 16.dp))
+                        }
                         SettingsButton(
                             stringResource(item.title), selected = category == item,
                             icon = item.icon, containerColor = Color.Transparent,
                             modifier = Modifier.fillMaxWidth().then(
                                 if (index == 0) Modifier.focusRequester(initialFocus) else Modifier
-                            ).focusRequester(categoryFocus.getValue(item)).focusProperties { right = contentFocus },
+                            ).focusRequester(categoryFocus.getValue(item))
+                                 .focusProperties {
+                                     right = if (item == category && item != SettingsCategory.HOME) contentFocus else FocusRequester.Default
+                                     if (index > 0) up = categoryFocus.getValue(SettingsCategory.entries[index - 1])
+                                     if (index < SettingsCategory.entries.lastIndex) down = categoryFocus.getValue(SettingsCategory.entries[index + 1])
+                                 },
                             onClick = { category = item }
                         )
                     }
@@ -166,53 +208,26 @@ private fun LauncherSettingsContent(
                 // These short panels stay composed so D-pad entry targets remain attached after scrolling.
                 categoryState.SaveableStateProvider(category.name) {
                     when (category) {
-                        SettingsCategory.THEMES -> Column(
+                        SettingsCategory.HOME, SettingsCategory.THEMES -> Column(
                             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
                             verticalArrangement = Arrangement.spacedBy(if (compact) 12.dp else 16.dp)
-                        ) {
-                            Column {
-                                SettingsHeading(
-                                    stringResource(if (isActive) R.string.settings_current_theme else R.string.theme_import_preview),
-                                    if (compact) null else stringResource(R.string.settings_theme_intro)
-                                )
-                            }
-                            Column {
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                                    SettingsThemePreview(
-                                        previewAppearance, previewTheme?.composition, previewName,
-                                        apps, safePreviewData,
-                                        Modifier.weight(if (compact) 1.1f else 1.9f).aspectRatio(16f / 9f).clip(RoundedCornerShape(12.dp))
-                                            .border(1.dp, SettingsColors.divider, RoundedCornerShape(12.dp)),
-                                        assetUris = previewTheme?.assetUris.orEmpty()
-                                    )
-                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp)) {
-                                        Text(previewName, color = SettingsColors.text, fontSize = if (compact) 20.sp else 24.sp,
-                                            fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                        if (isActive) {
-                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                Icon(Icons.Default.Check, null, Modifier.size(18.dp), tint = SettingsColors.accent)
-                                                Text(stringResource(R.string.settings_theme_active), color = SettingsColors.accent, fontSize = 14.sp)
-                                            }
-                                        }
-                                        if (!compact) Text(stringResource(R.string.settings_theme_description), color = SettingsColors.muted, fontSize = 14.sp)
-                                        if (!isActive) {
-                                            SettingsButton(stringResource(R.string.apply_theme), primary = true,
-                                                icon = Icons.Default.Check, modifier = Modifier.fillMaxWidth().focusRequester(contentFocus)
-                                                    .focusProperties { left = categoryFocus.getValue(category) },
-                                                onClick = { previewTheme?.let { onApplyInstalledTheme(it.id) } })
-                                        } else {
-                                            SettingsButton(
-                                                stringResource(if (previewTheme != null) R.string.settings_edit_design else R.string.custom_layout_title),
-                                                primary = true, icon = Icons.Default.Edit, modifier = Modifier.fillMaxWidth().focusRequester(contentFocus)
-                                                    .focusProperties { left = categoryFocus.getValue(category) },
-                                                onClick = { previewTheme?.let { onEditInstalledTheme(it.id) } ?: onCreateCustomTheme() }
-                                            )
-                                        }
-                                        SettingsButton(stringResource(R.string.settings_more_options), icon = Icons.Default.MoreHoriz,
-                                            modifier = Modifier.fillMaxWidth().focusProperties { left = categoryFocus.getValue(category) }, onClick = { showOptions = true })
-                                    }
-                                }
-                            }
+                         ) {
+                            if (!isThemeLibraryVisible) {
+                                SettingsHeading(stringResource(R.string.launcher_home), stringResource(R.string.settings_theme_intro))
+                                SettingsThemePreview(appearance, activeTheme?.composition, activeName, apps, safePreviewData,
+                                    Modifier.fillMaxWidth().heightIn(max = 240.dp).aspectRatio(16f / 9f),
+                                    assetUris = activeTheme?.assetUris.orEmpty())
+                                Text(activeName, color = SettingsColors.text, fontSize = 20.sp)
+                            } else {
+                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                 horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                 Column(Modifier.weight(1f)) {
+                                     SettingsHeading(stringResource(R.string.settings_my_themes),
+                                         stringResource(R.string.settings_theme_library_intro))
+                                 }
+                                 SettingsButton(stringResource(R.string.editor_create_title), icon = Icons.Default.Add,
+                                     modifier = Modifier.then(if (installedThemes.isEmpty()) Modifier.focusRequester(contentFocus) else Modifier), onClick = onCreateCustomTheme)
+                             }
                             Column {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     Text(stringResource(R.string.settings_my_themes), fontSize = 20.sp,
@@ -223,26 +238,68 @@ private fun LauncherSettingsContent(
                             if (installedThemes.isEmpty()) {
                                 Text(stringResource(R.string.settings_empty_themes), fontSize = 14.sp, color = SettingsColors.muted)
                             }
-                            Column {
-                                LazyRow(contentPadding = PaddingValues(8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    items(installedThemes, key = { it.id }) { theme ->
-                                        SettingsThemeTile(
-                                            theme, theme.id == appearance.installedThemeId, theme.id == previewTheme?.id,
-                                            apps, safePreviewData, onClick = { selectedThemeId = theme.id }
-                                        )
-                                    }
-                                    item(key = "create") {
-                                        SettingsVisualChoice(stringResource(R.string.custom_layout_title), selected = false,
-                                            modifier = Modifier.heightIn(min = 80.dp), onClick = onCreateCustomTheme) {
-                                            Icon(Icons.Default.Add, null, Modifier.size(24.dp), tint = SettingsColors.accent)
-                                        }
-                                    }
-                                }
+                             installedThemes.chunked(if (compact) 2 else 3).forEach { themes ->
+                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                     themes.forEach { theme ->
+                                         key(theme.id) {
+                                             val isThemeActive = theme.id == appearance.installedThemeId
+                                             val themeIndex = installedThemes.indexOfFirst { it.id == theme.id }
+                                             val columnCount = if (compact) 2 else 3
+                                             Column(Modifier.weight(1f)
+                                                 .background(SettingsColors.surface, RoundedCornerShape(16.dp))
+                                                 .border(1.dp, if (isThemeActive) SettingsColors.accent else SettingsColors.divider, RoundedCornerShape(16.dp))
+                                                 .padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                                 SettingsContentButton(
+                                                     onClick = { selectedThemeId = theme.id; showOptions = true },
+                                                     modifier = Modifier.fillMaxWidth()
+                                                         .then(if (themeIndex == 0) Modifier.focusRequester(contentFocus) else Modifier)
+                                                         .focusRequester(themeFocusRequesters.getValue(theme.id))
+                                                         .focusProperties {
+                                                             if (themeIndex % columnCount == 0) left = categoryFocus.getValue(category)
+                                                             else left = themeFocusRequesters.getValue(installedThemes[themeIndex - 1].id)
+                                                             if (themeIndex % columnCount < columnCount - 1 && themeIndex < installedThemes.lastIndex)
+                                                                 right = themeFocusRequesters.getValue(installedThemes[themeIndex + 1].id)
+                                                         }
+                                                 ) {
+                                                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                                 SettingsThemePreview(theme.appearance, theme.composition, theme.name,
+                                                     apps, safePreviewData, Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+                                                         .clip(RoundedCornerShape(8.dp)), assetUris = theme.assetUris)
+                                                 Text(theme.name, color = SettingsColors.text, fontSize = 16.sp,
+                                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                                 }
+                                                 }
+                                                 if (isThemeActive) Row(verticalAlignment = Alignment.CenterVertically,
+                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                     Icon(Icons.Default.Check, stringResource(R.string.settings_theme_active),
+                                                         Modifier.size(20.dp), tint = SettingsColors.accent)
+                                                     Text(stringResource(R.string.settings_theme_active), color = SettingsColors.accent, fontSize = 12.sp)
+                                                 }
+                                             }
+                                         }
+                                     }
+                                     repeat((if (compact) 2 else 3) - themes.size) { Spacer(Modifier.weight(1f)) }
+                                 }
+                             }
                             }
-                            Column {
-                                SettingsActionRow {
-                                    SettingsButton(stringResource(R.string.import_theme_package), icon = Icons.Default.FileDownload, onClick = onImportTheme)
-                                    SettingsButton(stringResource(R.string.settings_explore_themes), icon = Icons.Default.Language, onClick = onOpenOnlineThemes)
+                        }
+                        SettingsCategory.FAVORITES -> Column(
+                            Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            SettingsHeading(stringResource(R.string.settings_favorites), stringResource(R.string.settings_favorites_intro))
+                            if (apps.isEmpty()) {
+                                Text(stringResource(R.string.settings_favorites_empty), color = SettingsColors.muted, fontSize = 14.sp)
+                            } else {
+                                apps.sortedBy { it.label.lowercase() }.forEach { app ->
+                                    val isFavorite = app.packageName in appearance.favoritePackages
+                                    SettingsButton(
+                                        label = app.label,
+                                        selected = isFavorite,
+                                        icon = if (isFavorite) Icons.Default.Check else Icons.Default.Add,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = { onToggleFavorite(app.packageName) }
+                                    )
                                 }
                             }
                         }
@@ -308,6 +365,16 @@ private fun LauncherSettingsContent(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             SettingsHeading(stringResource(R.string.settings_appearance), stringResource(R.string.settings_appearance_intro))
+                            SettingsSectionTitle(stringResource(R.string.settings_animations))
+                            Column {
+                                SettingsButton(
+                                    label = stringResource(if (appearance.animationsEnabled) R.string.settings_animations_on else R.string.settings_animations_off),
+                                    icon = Icons.Default.Animation,
+                                    selected = appearance.animationsEnabled,
+                                    onClick = { onIntent(AppearanceAction.ToggleAnimations) }
+                                )
+                                Text(stringResource(R.string.settings_animations_intro), color = SettingsColors.muted, fontSize = 12.sp)
+                            }
                             Column {
                                 SettingsThemePreview(appearance, activeTheme?.composition,
                                     activeName, apps, safePreviewData,
@@ -342,6 +409,30 @@ private fun LauncherSettingsContent(
                                 }
                             }
                         }
+                        SettingsCategory.WEATHER -> if (weatherContent != null) Box(
+                            Modifier.weight(1f).fillMaxHeight().focusRequester(contentFocus)
+                                .focusProperties { left = categoryFocus.getValue(category) }
+                        ) { weatherContent() } else Column(
+                            Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            SettingsHeading(stringResource(R.string.weather_settings_title), stringResource(R.string.weather_settings_description))
+                            Text(stringResource(R.string.weather_city_search), color = SettingsColors.muted)
+                            SettingsButton(stringResource(R.string.weather_settings_title), icon = Icons.Default.Tune,
+                                modifier = Modifier.fillMaxWidth().focusRequester(contentFocus), onClick = onOpenWeatherSettings)
+                        }
+                        SettingsCategory.DEVICE_TOOLS -> if (deviceToolsContent != null) Box(
+                            Modifier.weight(1f).fillMaxHeight().focusRequester(contentFocus)
+                                .focusProperties { left = categoryFocus.getValue(category) }
+                        ) { deviceToolsContent() } else Column(
+                            Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(4.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            SettingsHeading(stringResource(R.string.device_tools_title), stringResource(R.string.device_tools_description))
+                            Text(stringResource(R.string.device_tools_shizuku_unavailable), color = SettingsColors.muted)
+                            SettingsButton(stringResource(R.string.device_tools_title), icon = Icons.Default.Security,
+                                modifier = Modifier.fillMaxWidth().focusRequester(contentFocus), onClick = onOpenDeviceTools)
+                        }
                     }
                 }
             }
@@ -357,17 +448,16 @@ private fun LauncherSettingsContent(
 
     LaunchedEffect(Unit) { if (!isInspection) initialFocus.requestFocus() }
 
+
     if (showOptions) {
         SettingsActionDialog(previewName, onDismiss = { showOptions = false }) {
             if (previewTheme != null) {
+                SettingsButton(stringResource(R.string.apply_theme), icon = Icons.Default.Check,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = { showOptions = false; onApplyInstalledTheme(previewTheme.id) })
                 SettingsButton(stringResource(R.string.settings_edit_design), icon = Icons.Default.Edit,
-                    modifier = Modifier.fillMaxWidth(), onClick = { showOptions = false; onEditInstalledTheme(previewTheme.id) })
-            }
-            if (isActive) {
-                SettingsButton(stringResource(R.string.export_active_theme), icon = Icons.Default.FileUpload,
-                    modifier = Modifier.fillMaxWidth(), onClick = { showOptions = false; onExportTheme() })
-            }
-            if (previewTheme != null) {
+                    modifier = Modifier.fillMaxWidth(), enabled = previewTheme.composition != null,
+                    onClick = { showOptions = false; onEditInstalledTheme(previewTheme.id) })
                 SettingsButton(stringResource(R.string.delete_theme), icon = Icons.Default.DeleteOutline,
                     destructive = true, modifier = Modifier.fillMaxWidth(),
                     onClick = { showOptions = false; deleteTheme = previewTheme })
@@ -494,6 +584,7 @@ private fun SettingsActionDialog(title: String, onDismiss: () -> Unit, content: 
 @Composable
 private fun LauncherSettingsThemesPreview() = LauncherSettingsPreviewContent(SettingsCategory.THEMES)
 
+
 @Preview(name = "TV · Biblioteca vacía", widthDp = 960, heightDp = 540)
 @Composable
 private fun LauncherSettingsEmptyPreview() = LauncherSettingsPreviewContent(SettingsCategory.THEMES, emptyList())
@@ -525,6 +616,6 @@ private fun LauncherSettingsPreviewContent(category: SettingsCategory, themes: L
     val appearance = themes.firstOrNull()?.appearance ?: LauncherAppearance()
     LauncherTheme(appearance) {
         LauncherSettingsContent(appearance, {}, {}, {}, {}, {}, {}, {}, themes, {}, {}, {},
-            persistentListOf(), PlaceholderCanvasData, initialCategory = category)
+            persistentListOf(), PlaceholderCanvasData, {}, {}, initialCategory = category)
     }
 }

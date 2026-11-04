@@ -20,17 +20,20 @@ import com.tv.launcher.custom.core.model.theme.ThemeId
 import com.tv.launcher.custom.core.ui.R
 import com.tv.launcher.custom.core.ui.theme.LauncherTheme
 import com.tv.launcher.custom.core.ui.theme.LocalLauncherStyle
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImage
+import com.tv.launcher.custom.core.ui.theme.LocalBackgroundImageVisible
 
 @Composable
 fun LauncherPersonalizationButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val palette = LocalLauncherStyle.current.palette
+    val hasCustomBackground = LocalBackgroundImageVisible.current || LocalBackgroundImage.current != null
     val description = stringResource(R.string.launcher_personalization)
     Surface(
         onClick = onClick,
         modifier = modifier.size(48.dp).touchClick(onClick).semantics { contentDescription = description },
         shape = ClickableSurfaceDefaults.shape(CircleShape),
         colors = ClickableSurfaceDefaults.colors(
-            containerColor = palette.surface,
+            containerColor = if (hasCustomBackground) androidx.compose.ui.graphics.Color.Transparent else palette.surface,
             contentColor = palette.onBackground,
             focusedContainerColor = palette.accent,
             focusedContentColor = palette.onBackground

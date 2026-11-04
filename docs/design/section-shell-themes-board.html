@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV Launcher · Ocho perfiles, un shell</title>
+<style>
+  :root{
+    --ink:#05060a;--text:#f1f5f7;--muted:#98a2b2;--dim:#727c8c;
+    --accent:#37d9c5;--line:rgba(255,255,255,.09);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;width:2400px;height:1760px;overflow:hidden;background:var(--ink);color:var(--text);
+    font-family:"Avenir Next","SF Pro Display","Helvetica Neue",Inter,Roboto,sans-serif;
+    background:
+      radial-gradient(1000px 560px at 84% -12%,rgba(55,217,197,.07),transparent 62%),
+      radial-gradient(800px 520px at 0% 112%,rgba(115,82,200,.09),transparent 62%),
+      #05060a;
+  }
+  .board{padding:64px 68px 50px}
+  .top{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:30px}
+  .kicker{font-size:12.5px;color:var(--accent);font-weight:600;letter-spacing:.01em}
+  h1{margin:10px 0 0;font-size:54px;line-height:1;letter-spacing:-.05em;font-weight:600}
+  .lede{margin:15px 0 0;max-width:760px;color:var(--muted);font-size:14.5px;line-height:1.55}
+  .meta{display:flex;gap:10px;padding-bottom:4px}
+  .pill{padding:7px 12px;border:1px solid var(--line);border-radius:999px;color:#c4ccd7;font-size:11.5px;background:rgba(255,255,255,.025)}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px rgba(55,217,197,.8);margin-right:7px}
+
+  .grid{display:grid;grid-template-columns:repeat(3,740px);gap:22px}
+  .theme-card{margin:0}
+  .frame{border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.10);background:#0b0d13;box-shadow:0 24px 70px rgba(0,0,0,.38)}
+  .frame img{display:block;width:100%;height:auto}
+  figcaption{display:flex;align-items:center;gap:10px;padding:11px 4px 0}
+  figcaption .swatch{width:9px;height:9px;border-radius:50%;background:var(--sw);box-shadow:0 0 12px color-mix(in srgb,var(--sw) 55%,transparent);flex:0 0 auto}
+  figcaption b{font-size:13px;font-weight:600;letter-spacing:-.01em}
+  figcaption span{font-size:11.5px;color:var(--dim)}
+  figcaption .family{margin-left:auto;color:var(--muted);font-size:10.5px;padding:3px 8px;border:1px solid var(--line);border-radius:999px}
+
+  .note-cell{
+    min-height:446px;border-radius:18px;border:1px solid var(--line);background:rgba(255,255,255,.025);
+    padding:26px;display:flex;flex-direction:column;justify-content:space-between;
+  }
+  .note-cell h2{margin:0;font-size:22px;letter-spacing:-.03em;font-weight:600;line-height:1.2}
+  .note-cell p{margin:12px 0 0;color:var(--muted);font-size:12.5px;line-height:1.6}
+  .note-cell ul{list-style:none;padding:0;margin:20px 0 0;display:flex;flex-direction:column;gap:11px}
+  .note-cell li{display:flex;gap:10px;color:#c5cdd8;font-size:12px;line-height:1.45}
+  .note-cell li i{width:5px;height:5px;border-radius:50%;background:var(--accent);margin-top:6px;flex:0 0 auto}
+  .note-cell .foot{color:var(--dim);font-size:11px;border-top:1px solid var(--line);padding-top:14px}
+
+  footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);margin-top:26px;padding-top:16px;color:var(--dim);font-size:11.5px}
+  footer .rules{display:flex;gap:26px;color:#aab3c0}
+  footer .rules span{display:flex;align-items:center;gap:8px}
+  footer .rules i{width:5px;height:5px;border-radius:50%;background:var(--accent);display:block}
+</style>
+</head>
+<body>
+<div class="board">
+  <header class="top">
+    <div>
+      <div class="kicker">Perfiles visuales · TV Launcher</div>
+      <h1>Navegación propia.<br>La misma vista.</h1>
+      <p class="lede">Sin barra lateral universal añadida. Cada perfil usa su propia navegación para cambiar el contenido. Cada perfil conserva su paleta, su radio y su composición real de Inicio; Roku mantiene su grilla y Free My TV su panel de favoritos.</p>
+    </div>
+    <div class="meta">
+      <span class="pill"><span class="dot"></span>Propuesta visual</span>
+      <span class="pill">8 perfiles · 1920 × 1080</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-webos-home.png" alt="Perfil webOS"></div>
+      <figcaption><span class="swatch" style="--sw:#37d9c5"></span><b>webOS</b><span>Teal · shortcuts + carrusel</span><span class="family">apps</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-firetv-home.png" alt="Perfil Fire TV"></div>
+      <figcaption><span class="swatch" style="--sw:#53b8ff"></span><b>Fire TV</b><span>Azul · hero + dos filas</span><span class="family">apps</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-roku-home.png" alt="Perfil Roku"></div>
+      <figcaption><span class="swatch" style="--sw:#ffffff"></span><b>Roku</b><span>Morado · grilla 3 × 3</span><span class="family">grid</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-tizen-home.png" alt="Perfil Tizen"></div>
+      <figcaption><span class="swatch" style="--sw:#6b7bff"></span><b>Tizen</b><span>Índigo · tabs centrados</span><span class="family">apps</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-androidtv-home.png" alt="Perfil Android TV"></div>
+      <figcaption><span class="swatch" style="--sw:#8ab4f8"></span><b>Android TV</b><span>Azul hielo · hero + filas</span><span class="family">apps</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-googletv-home.png" alt="Perfil Google TV"></div>
+      <figcaption><span class="swatch" style="--sw:#a8c7fa"></span><b>Google TV</b><span>Azul suave · cards + apps</span><span class="family">apps</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-appletv-home.png" alt="Perfil Apple TV"></div>
+      <figcaption><span class="swatch" style="--sw:#ffc078"></span><b>Apple TV</b><span>Ámbar · panel + hero</span><span class="family">apps</span></figcaption>
+    </figure>
+    <figure class="theme-card">
+      <div class="frame"><img src="theme-freemytv-home.png" alt="Perfil Free My TV"></div>
+      <figcaption><span class="swatch" style="--sw:#168cff"></span><b>Free My TV</b><span>Azul · favoritos</span><span class="family">dashboard</span></figcaption>
+    </figure>
+
+    <div class="note-cell">
+      <div>
+        <h2>Qué integra el shell</h2>
+        <p>Cada layout conserva su navegación original. Inicio, Buscar y Apps cambian dentro de su área de contenido.</p>
+        <ul>
+          <li><i></i>No se añade una segunda barra lateral a Roku ni Apple TV.</li>
+          <li><i></i>Cabeceras, columnas y filas de acciones respetan cada tema.</li>
+          <li><i></i>Roku conserva su grilla; Free My TV, su panel de favoritos.</li>
+          <li><i></i>Buscar y Apps comparten mecánica; cambian acento y superficies.</li>
+        </ul>
+      </div>
+      <div class="foot">Prototipo: section-shell.html · <b>T</b> cambia de perfil · las flechas cambian de sección.</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="rules">
+      <span><i></i>Una sola vista</span>
+      <span><i></i>Foco por sección</span>
+      <span><i></i>Sin diálogos de sección</span>
+      <span><i></i>Movimiento reducido</span>
+    </div>
+    <span>Capturas 1920 × 1080 · shell compartido</span>
+  </footer>
+</div>
+</body>
+</html>
